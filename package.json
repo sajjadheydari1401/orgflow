@@ -22,6 +22,7 @@
     "contract:emit": "prisma contract emit"
   },
   "dependencies": {
+    "@nestjs/bullmq": "^12.0.0",
     "@nestjs/common": "^12.1.2",
     "@nestjs/config": "^12.0.1",
     "@nestjs/core": "^12.1.2",
@@ -34,6 +35,7 @@
     "@prisma/client": "^7.10.0",
     "@prisma/orm-postgres": "8.0.0-rc.14",
     "bcrypt": "^6.0.0",
+    "bullmq": "^6.3.11",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
     "dotenv": "^18.0.6",
@@ -85,6 +87,9 @@
     "extensionsToTreatAsEsm": [
       ".ts"
     ],
+    "moduleNameMapper": {
+      "^(\\.{1,2}/.*)\\.js$": "$1"
+    },
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
       "^.+\\.(t|j)s$": [

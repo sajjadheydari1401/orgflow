@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { BullModule } from '@nestjs/bullmq';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ThrottlerModule } from '@nestjs/throttler';
@@ -8,9 +9,11 @@ import { JwtStrategy } from './jwt.strategy.js';
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
 import { EmailService } from './email.service.js';
+import { EmailProcessor } from './email.processor.js';
 
 @Module({
   imports: [
+    BullModule.registerQueue({ name: 'email' }),
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 5 }]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
@@ -21,7 +24,13 @@ import { EmailService } from './email.service.js';
       }),
     }),
   ],
-  providers: [JwtStrategy, JwtAuthGuard, AuthService, EmailService],
+  providers: [
+    JwtStrategy,
+    JwtAuthGuard,
+    AuthService,
+    EmailService,
+    EmailProcessor,
+  ],
   exports: [JwtModule, PassportModule, JwtAuthGuard],
   controllers: [AuthController],
 })
