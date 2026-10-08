@@ -1,16 +1,9 @@
 import { BadRequestException, ConflictException, Logger } from '@nestjs/common';
 import { jest } from '@jest/globals';
 import { createHash } from 'node:crypto';
-import type { Queue } from 'bullmq';
 import type { RegisterWithEmailPasswordDto } from './dto/register-with-email-password.dto.js';
 import type { RegisteredUserData } from './types/registered-user-data.interface.js';
-import type { VerificationEmailJob } from './types/verification-email-job.interface.js';
-
-type EmailJobRecord = {
-  name: string;
-  data: VerificationEmailJob;
-  options: Record<string, unknown>;
-};
+import type { EmailService } from './email.service.js';
 
 type VerificationRecord = {
   id: string;
@@ -35,7 +28,7 @@ const storedTokens: Array<{
   tokenHash: string;
   expiresAt: string;
 }> = [];
-const queuedJobs: EmailJobRecord[] = [];
+const sentEmails: Array<{ email: string; token: string }> = [];
 
 const firstUser = jest.fn(async () => existingUser);
 const userUpdateAll = jest.fn(async () => [createdUser]);
@@ -48,16 +41,9 @@ const tokenCreate = jest.fn(async (token: (typeof storedTokens)[number]) => {
   storedTokens.push(token);
   return token;
 });
-const queueAdd = jest.fn(
-  async (
-    name: string,
-    data: VerificationEmailJob,
-    options: EmailJobRecord['options'],
-  ) => {
-    queuedJobs.push({ name, data, options });
-    return { id: 'email-job-1' };
-  },
-);
+const sendVerificationEmail = jest.fn(async (email: string, token: string) => {
+  sentEmails.push({ email, token });
+});
 const hashPassword = jest.fn(async () => 'hashed-password');
 const tokenFirst = jest.fn(async () => verificationRecord);
 const tokenUpdateAll = jest.fn(async () =>
@@ -105,12 +91,12 @@ describe('AuthService', () => {
     verificationRecord = null;
     affectedVerificationRows = 1;
     storedTokens.length = 0;
-    queuedJobs.length = 0;
+    sentEmails.length = 0;
     firstUser.mockClear();
     userWhere.mockClear();
     userCreate.mockClear();
     tokenCreate.mockClear();
-    queueAdd.mockClear();
+    sendVerificationEmail.mockClear();
     tokenFirst.mockClear();
     tokenUpdateAll.mockClear();
     userUpdateAll.mockClear();
@@ -118,11 +104,11 @@ describe('AuthService', () => {
 
     service = new AuthService(
       { log: jest.fn() } as unknown as Logger,
-      { add: queueAdd } as unknown as Queue<VerificationEmailJob>,
+      { sendVerificationEmail } as unknown as EmailService,
     );
   });
 
-  it('stores a hashed verification token and queues the email', async () => {
+  it('stores a hashed verification token and sends the verification email', async () => {
     const input: RegisterWithEmailPasswordDto = {
       email: ' Person@Example.com ',
       password: 'password123',
@@ -130,7 +116,7 @@ describe('AuthService', () => {
     };
 
     const result = await service.registerWithEmailPassword(input);
-    const queuedJob = queuedJobs[0];
+    const sentEmail = sentEmails[0];
 
     expect(result).toEqual(createdUser);
     expect(userWhere).toHaveBeenCalledWith({ email: 'person@example.com' });
@@ -143,20 +129,16 @@ describe('AuthService', () => {
     expect(storedTokens).toHaveLength(1);
     expect(storedTokens[0].userId).toBe(createdUser.id);
     expect(storedTokens[0].tokenHash).toBe(
-      createHash('sha256').update(queuedJob.data.token).digest('hex'),
+      createHash('sha256').update(sentEmail.token).digest('hex'),
     );
     expect(Date.parse(storedTokens[0].expiresAt)).toBeGreaterThan(Date.now());
-    expect(queuedJob.name).toBe('send-verification-email');
-    expect(queuedJob.data.email).toBe('person@example.com');
-    expect(queuedJob.options).toEqual(
-      expect.objectContaining({
-        attempts: 5,
-        backoff: { type: 'exponential', delay: 1_000 },
-      }),
+    expect(sendVerificationEmail).toHaveBeenCalledWith(
+      'person@example.com',
+      sentEmail.token,
     );
   });
 
-  it('does not create a user or queue an email when the email exists', async () => {
+  it('does not create a user or send an email when the email exists', async () => {
     existingUser = createdUser;
 
     await expect(
@@ -169,7 +151,7 @@ describe('AuthService', () => {
 
     expect(userCreate).not.toHaveBeenCalled();
     expect(tokenCreate).not.toHaveBeenCalled();
-    expect(queueAdd).not.toHaveBeenCalled();
+    expect(sendVerificationEmail).not.toHaveBeenCalled();
   });
 
   it('consumes a valid token and marks its user email verified', async () => {
