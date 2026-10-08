@@ -3,7 +3,7 @@ model User {
   id              String                     @id @default(uuid())
   email           String                     @unique
   hashedPassword  String?
-  displayName     String?
+  displayName     String
   avatarUrl       String?
   mobile          String?
   isManager       Boolean                    @default(false)

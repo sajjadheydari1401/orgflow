@@ -30,7 +30,7 @@
                 }
               },
               "displayName": {
-                "nullable": true,
+                "nullable": false,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
@@ -152,7 +152,7 @@
                 "displayName": {
                   "codecId": "pg/text@1",
                   "nativeType": "text",
-                  "nullable": true
+                  "nullable": false
                 },
                 "email": {
                   "codecId": "pg/text@1",
@@ -215,7 +215,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "98244a809cc0d0c04f3e2318ea9c6306dae967ab2955c7a4fdcf90712a2280bf"
+    "storageHash": "bfeffc6c7371197bb73ed840d498e2712bef380e7ba7c04f1e8e08b389560e30"
   },
   "execution": {
     "executionHash": "b37e6c9239a7eead3500ff63e519acb365ca7c2b7167e455cc7bfc3a523d0807",

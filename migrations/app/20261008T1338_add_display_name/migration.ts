@@ -9,14 +9,16 @@ export default class M extends Migration<Start, End> {
   override readonly startContractJson = startContract;
   override readonly endContractJson = endContract;
 
-  override get operations() {
+  override get operations(): Migration<Start, End>['operations'] {
     return [
       this.dropColumn({ schema: 'public', table: 'User', column: 'firstName' }),
       this.dropColumn({ schema: 'public', table: 'User', column: 'lastName' }),
       this.addColumn({
         schema: 'public',
         table: 'User',
-        column: col('displayName', 'text', { codecRef: { codecId: 'pg/text@1' } }),
+        column: col('displayName', 'text', {
+          codecRef: { codecId: 'pg/text@1' },
+        }),
       }),
     ];
   }
