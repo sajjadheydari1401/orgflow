@@ -1,12 +1,17 @@
 import { ConflictException, Injectable, Logger } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
+import { createHash, randomBytes } from 'node:crypto';
 import { db } from '../prisma/db.js';
 import { RegisterWithEmailPasswordDto } from './dto/register-with-email-password.dto.js';
 import type { RegisteredUserData } from './types/registered-user-data.interface.js';
+import { EmailService } from './email.service.js';
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly logger: Logger) {}
+  constructor(
+    private readonly logger: Logger,
+    private readonly emailService: EmailService,
+  ) {}
 
   async registerWithEmailPassword(
     input: RegisterWithEmailPasswordDto,
@@ -29,6 +34,18 @@ export class AuthService {
       displayName: input.displayName?.trim(),
       isManager: false,
     });
+
+    const token = randomBytes(32).toString('base64url');
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+
+    await db.orm.public.EmailVerificationToken.create({
+      userId: result.id,
+      tokenHash,
+      expiresAt,
+    });
+
+    await this.emailService.sendVerificationEmail(email, token);
 
     this.logger.log('User registered successfully', AuthService.name);
 
