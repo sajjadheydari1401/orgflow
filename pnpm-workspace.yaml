@@ -1,3 +1,4 @@
 allowBuilds:
   '@parcel/watcher': true
+  bcrypt: set this to true or false
   unrs-resolver: true
