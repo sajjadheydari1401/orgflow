@@ -1,10 +1,12 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import { ConflictException, Injectable, Logger } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { db } from '../prisma/db.js';
 import { RegisterWithEmailPasswordDto } from './dto/register-with-email-password.dto.js';
 
 @Injectable()
 export class AuthService {
+  constructor(private readonly logger: Logger) {}
+
   async registerWithEmailPassword(
     input: RegisterWithEmailPasswordDto,
   ): Promise<any> {
@@ -24,6 +26,8 @@ export class AuthService {
       displayName: input.displayName?.trim(),
       isManager: false,
     });
+
+    this.logger.log('User registered successfully', AuthService.name);
 
     return {
       id: result.id,
