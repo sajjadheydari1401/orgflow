@@ -5,7 +5,8 @@ import { AppModule } from './app.module.js';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  app.useLogger(app.get(Logger));
+  const logger = app.get(Logger);
+  app.useLogger(logger);
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -23,5 +24,8 @@ async function bootstrap() {
   });
 
   await app.listen(process.env.APP_PORT ?? 3001);
+  logger.log(
+    `Application is running at ${process.env.APP_URL ?? 'http://localhost:3001'}`,
+  );
 }
 bootstrap();
