@@ -13,8 +13,10 @@ export class AuthService {
   ): Promise<RegisteredUserData> {
     const hashedPassword = await bcrypt.hash(input.password, 10);
 
+    const email = input.email.trim().toLowerCase();
+
     const exists = await db.orm.public.User.where({
-      email: input.email.trim().toLowerCase(),
+      email,
     }).first();
 
     if (exists) {
@@ -22,7 +24,7 @@ export class AuthService {
     }
 
     const result = await db.orm.public.User.create({
-      email: input.email.trim().toLowerCase(),
+      email,
       hashedPassword,
       displayName: input.displayName?.trim(),
       isManager: false,
