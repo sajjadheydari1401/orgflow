@@ -11,7 +11,7 @@ export class AuthService {
   async registerWithEmailPassword(
     input: RegisterWithEmailPasswordDto,
   ): Promise<RegisteredUserData> {
-    const hashedPassword = await bcrypt.hash(input.password, 10);
+    const hashedPassword = await bcrypt.hash(input.password, 12);
 
     const email = input.email.trim().toLowerCase();
 
