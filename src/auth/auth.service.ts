@@ -1,4 +1,9 @@
-import { ConflictException, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import * as bcrypt from 'bcrypt';
 import type { Queue } from 'bullmq';
@@ -38,16 +43,23 @@ export class AuthService {
       isManager: false,
     });
 
+    // Generate a cryptographically random token for the verification link.
     const token = randomBytes(32).toString('base64url');
+
+    // Store only a hash so the database never contains the usable token.
     const tokenHash = createHash('sha256').update(token).digest('hex');
+
+    // Expire the verification link after 30 minutes.
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
 
+    // Persist the token hash and its expiry against the new user.
     await db.orm.public.EmailVerificationToken.create({
       userId: result.id,
       tokenHash,
       expiresAt,
     });
 
+    // Queue the raw token for email delivery with retry handling.
     await this.emailQueue.add(
       'send-verification-email',
       { email, token },
@@ -59,6 +71,7 @@ export class AuthService {
       },
     );
 
+    // Log registration without including the token or password.
     this.logger.log('User registered successfully', AuthService.name);
 
     return {
@@ -67,5 +80,55 @@ export class AuthService {
       displayName: result.displayName,
       isManager: result.isManager,
     };
+  }
+
+  async verifyEmail(token: string): Promise<{ verified: true }> {
+    // Hash the submitted token to compare it with the stored hash.
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+
+    // Use one timestamp for expiry checks and both database updates.
+    const now = new Date().toISOString();
+
+    // Consume the token and verify its account atomically.
+    await db.transaction(async (tx) => {
+      // Find the token record by its hash, never by the raw token.
+      const verification = await tx.orm.public.EmailVerificationToken.where(
+        (record) => record.tokenHash.eq(tokenHash),
+      ).first();
+
+      // Reject unknown, already-used, or expired tokens.
+      if (
+        !verification ||
+        verification.usedAt !== null ||
+        Date.parse(verification.expiresAt) <= Date.now()
+      ) {
+        throw new BadRequestException(
+          'Verification token is invalid or expired',
+        );
+      }
+
+      // Claim the token only if it is still unused and unexpired.
+      const consumed = await tx.orm.public.EmailVerificationToken.where(
+        (record) => record.id.eq(verification.id),
+      )
+        .where((record) => record.usedAt.isNull())
+        .where((record) => record.expiresAt.gt(now))
+        .updateAll({ usedAt: now });
+
+      // A zero-row update means another request already consumed the token.
+      if (consumed.length !== 1) {
+        throw new BadRequestException(
+          'Verification token is invalid or expired',
+        );
+      }
+
+      // Mark the user verified only after successfully consuming the token.
+      await tx.orm.public.User.where({ id: verification.userId }).updateAll({
+        emailVerifiedAt: now,
+      });
+    });
+
+    // Signal successful verification to the controller.
+    return { verified: true };
   }
 }

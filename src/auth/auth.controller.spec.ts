@@ -32,4 +32,18 @@ describe('AuthController', () => {
     );
     expect(registerWithEmailPassword).toHaveBeenCalledWith(input);
   });
+
+  it('passes the verification token to the service', async () => {
+    const verifyEmail = jest.fn(async () => ({ verified: true as const }));
+    const controller = new AuthController({
+      verifyEmail,
+    } as unknown as AuthService);
+
+    await expect(
+      controller.verifyEmail({ token: 'verification-token' }),
+    ).resolves.toEqual({
+      verified: true,
+    });
+    expect(verifyEmail).toHaveBeenCalledWith('verification-token');
+  });
 });
