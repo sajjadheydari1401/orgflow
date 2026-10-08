@@ -6,7 +6,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { Response } from 'express';
-import { getErrorDetails } from '../utils/error';
+import { getErrorDetails } from '../utils/error.js';
 
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
