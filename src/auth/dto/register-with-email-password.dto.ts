@@ -13,5 +13,6 @@ export class RegisterWithEmailPasswordDto {
 
   @ApiProperty({ example: 'Sajjad Heydari' })
   @IsString()
+  @MinLength(3)
   displayName!: string;
 }
