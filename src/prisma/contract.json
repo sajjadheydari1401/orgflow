@@ -29,6 +29,13 @@
                   "kind": "scalar"
                 }
               },
+              "displayName": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "email": {
                 "nullable": false,
                 "type": {
@@ -40,13 +47,6 @@
                 "nullable": true,
                 "type": {
                   "codecId": "pg/timestamptz-string@1",
-                  "kind": "scalar"
-                }
-              },
-              "firstName": {
-                "nullable": true,
-                "type": {
-                  "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
               },
@@ -68,13 +68,6 @@
                 "nullable": false,
                 "type": {
                   "codecId": "pg/bool@1",
-                  "kind": "scalar"
-                }
-              },
-              "lastName": {
-                "nullable": true,
-                "type": {
-                  "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
               },
@@ -102,14 +95,14 @@
                 "createdAt": {
                   "column": "createdAt"
                 },
+                "displayName": {
+                  "column": "displayName"
+                },
                 "email": {
                   "column": "email"
                 },
                 "emailVerifiedAt": {
                   "column": "emailVerifiedAt"
-                },
-                "firstName": {
-                  "column": "firstName"
                 },
                 "hashedPassword": {
                   "column": "hashedPassword"
@@ -119,9 +112,6 @@
                 },
                 "isManager": {
                   "column": "isManager"
-                },
-                "lastName": {
-                  "column": "lastName"
                 },
                 "mobile": {
                   "column": "mobile"
@@ -159,6 +149,11 @@
                   "nativeType": "timestamptz",
                   "nullable": false
                 },
+                "displayName": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
                 "email": {
                   "codecId": "pg/text@1",
                   "nativeType": "text",
@@ -167,11 +162,6 @@
                 "emailVerifiedAt": {
                   "codecId": "pg/timestamptz-string@1",
                   "nativeType": "timestamptz",
-                  "nullable": true
-                },
-                "firstName": {
-                  "codecId": "pg/text@1",
-                  "nativeType": "text",
                   "nullable": true
                 },
                 "hashedPassword": {
@@ -192,11 +182,6 @@
                   },
                   "nativeType": "bool",
                   "nullable": false
-                },
-                "lastName": {
-                  "codecId": "pg/text@1",
-                  "nativeType": "text",
-                  "nullable": true
                 },
                 "mobile": {
                   "codecId": "pg/text@1",
@@ -230,7 +215,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "e2228af022e68cdaa4d09b92ce7402db3ff329d588bd42f88c4600fe4eea731c"
+    "storageHash": "98244a809cc0d0c04f3e2318ea9c6306dae967ab2955c7a4fdcf90712a2280bf"
   },
   "execution": {
     "executionHash": "b37e6c9239a7eead3500ff63e519acb365ca7c2b7167e455cc7bfc3a523d0807",
