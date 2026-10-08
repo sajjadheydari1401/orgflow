@@ -6,6 +6,7 @@ import { AppModule } from './app.module.js';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const logger = app.get(Logger);
+  app.setGlobalPrefix('api');
   app.useLogger(logger);
   app.useGlobalPipes(
     new ValidationPipe({
@@ -20,7 +21,7 @@ async function bootstrap() {
     .addBearerAuth()
     .build();
   SwaggerModule.setup('docs', app, SwaggerModule.createDocument(app, config), {
-    swaggerOptions: { persistAuthorization: true },
+    swaggerOptions: { useGlobalPrefix: true, persistAuthorization: true },
   });
 
   await app.listen(process.env.APP_PORT ?? 3001);
