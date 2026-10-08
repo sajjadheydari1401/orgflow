@@ -3,6 +3,7 @@ import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module.js';
+import { GlobalExceptionFilter } from './common/filters/global-exception.filter.js';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -10,6 +11,7 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
   const port = Number(configService.get('APP_PORT', '3001'));
   const appUrl = configService.get('APP_URL', `http://localhost:${port}/api`);
+  app.useGlobalFilters(new GlobalExceptionFilter());
   app.setGlobalPrefix('api');
   app.useLogger(logger);
   app.useGlobalPipes(
