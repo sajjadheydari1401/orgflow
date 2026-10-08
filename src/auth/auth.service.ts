@@ -2,6 +2,7 @@ import { ConflictException, Injectable, Logger } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { db } from '../prisma/db.js';
 import { RegisterWithEmailPasswordDto } from './dto/register-with-email-password.dto.js';
+import type { RegisteredUserData } from './types/registered-user-data.interface.js';
 
 @Injectable()
 export class AuthService {
@@ -9,7 +10,7 @@ export class AuthService {
 
   async registerWithEmailPassword(
     input: RegisterWithEmailPasswordDto,
-  ): Promise<any> {
+  ): Promise<RegisteredUserData> {
     const hashedPassword = await bcrypt.hash(input.password, 10);
 
     const exists = await db.orm.public.User.where({
