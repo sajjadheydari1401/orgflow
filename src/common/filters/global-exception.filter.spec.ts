@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import {
   BadRequestException,
   ConflictException,
@@ -316,7 +317,7 @@ describe('GlobalExceptionFilter', () => {
     it('should always return success: false', () => {
       filter.catch(new NotFoundException('Test error'), host as any);
 
-      const result = response.json.mock.calls[0][0];
+      const result: any = response.json.mock.calls[0][0];
 
       expect(result.success).toBe(false);
     });
