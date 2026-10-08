@@ -1,7 +1,9 @@
 import { Body, Controller, Post } from '@nestjs/common';
-import { RegisterWithEmailPasswordDto } from './dto/register-with-email-password.dto';
-import { AuthService } from './auth.service';
+import { ApiTags } from '@nestjs/swagger';
+import { RegisterWithEmailPasswordDto } from './dto/register-with-email-password.dto.js';
+import { AuthService } from './auth.service.js';
 
+@ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}

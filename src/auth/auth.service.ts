@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
-import { db } from 'src/prisma/db';
-import { RegisterWithEmailPasswordDto } from './dto/register-with-email-password.dto';
+import { db } from '../prisma/db.js';
+import { RegisterWithEmailPasswordDto } from './dto/register-with-email-password.dto.js';
 
 @Injectable()
 export class AuthService {
