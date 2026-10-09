@@ -11,7 +11,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
 import { ThrottlerGuard } from '@nestjs/throttler';
 
 import { RegisterWithEmailPasswordDto } from './dto/register-with-email-password.dto.js';
@@ -63,6 +63,7 @@ export class AuthController {
   }
 
   @Post('refresh')
+  @ApiCookieAuth('refresh_token')
   @HttpCode(HttpStatus.OK)
   @UseGuards(RefreshTokenGuard)
   async refresh(
@@ -90,6 +91,7 @@ export class AuthController {
   }
 
   @Post('logout')
+  @ApiCookieAuth('refresh_token')
   @HttpCode(HttpStatus.OK)
   @UseGuards(RefreshTokenGuard)
   async logout(
@@ -108,6 +110,7 @@ export class AuthController {
   }
 
   @Get('me')
+  @ApiCookieAuth('access_token')
   @UseGuards(JwtAuthGuard)
   getCurrentUser(@Req() req: AuthenticatedRequest): Promise<LoginUserData> {
     return this.authService.getCurrentUser(req.user.userId);

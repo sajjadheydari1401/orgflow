@@ -28,9 +28,17 @@ async function bootstrap() {
     }),
   );
 
-  const config = new DocumentBuilder().setTitle('OrgFlow API').build();
+  const config = new DocumentBuilder()
+    .setTitle('OrgFlow API')
+    // These two only show lock icons per route in Swagger.
+    // The browser sends the real cookies by itself (httponly).
+    .addCookieAuth('access_token', undefined, 'access_token')
+    .addCookieAuth('refresh_token', undefined, 'refresh_token')
+    .build();
   SwaggerModule.setup('docs', app, SwaggerModule.createDocument(app, config), {
     useGlobalPrefix: true,
+    // Hide the Authorize button;
+    customCss: '.swagger-ui .auth-wrapper { display: none; }',
     swaggerOptions: { persistAuthorization: true },
   });
 
