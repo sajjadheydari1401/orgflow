@@ -8,7 +8,7 @@ import { JwtStrategy } from './strategies/jwt.strategy.js';
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
 import { EmailService } from './email.service.js';
-import { ACCESS_TOKEN_MAX_AGE_MS } from './auth.constants.js';
+import { ACCESS_TOKEN_TTL_SECONDS } from './auth.constants.js';
 import { RefreshTokenGuard } from './guards/refresh-token.guard.js';
 import { RefreshTokenStrategy } from './strategies/refresh-token.strategy.js';
 
@@ -20,7 +20,7 @@ import { RefreshTokenStrategy } from './strategies/refresh-token.strategy.js';
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
         secret: configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
-        signOptions: { expiresIn: ACCESS_TOKEN_MAX_AGE_MS / 1000 },
+        signOptions: { expiresIn: ACCESS_TOKEN_TTL_SECONDS },
       }),
     }),
   ],

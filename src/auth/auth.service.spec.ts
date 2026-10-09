@@ -13,6 +13,10 @@ import type { EmailService } from './email.service.js';
 import type { LoginWithEmailPasswordDto } from './dto/login-with-email-password.dto.js';
 import type { JwtService } from '@nestjs/jwt';
 import type { ConfigService } from '@nestjs/config';
+import {
+  ACCESS_TOKEN_TTL_SECONDS,
+  REFRESH_TOKEN_TTL_SECONDS,
+} from './auth.constants.js';
 
 type VerificationRecord = {
   id: string;
@@ -298,7 +302,26 @@ describe('AuthService', () => {
       input.password,
       'stored-password-hash',
     );
-    expect(signToken).toHaveBeenCalledTimes(2);
+    expect(signToken).toHaveBeenNthCalledWith(
+      1,
+      { sub: createdUser.id, email: createdUser.email, tokenType: 'access' },
+      {
+        secret: 'JWT_ACCESS_SECRET-value',
+        expiresIn: ACCESS_TOKEN_TTL_SECONDS,
+      },
+    );
+    expect(signToken).toHaveBeenNthCalledWith(
+      2,
+      { sub: createdUser.id, email: createdUser.email, tokenType: 'refresh' },
+      {
+        secret: 'JWT_REFRESH_SECRET-value',
+        expiresIn: REFRESH_TOKEN_TTL_SECONDS,
+      },
+    );
+    // Access tokens expire after 15 minutes (900 seconds).
+    expect(ACCESS_TOKEN_TTL_SECONDS).toBe(900);
+    // Refresh tokens expire after 7 days (604,800 seconds).
+    expect(REFRESH_TOKEN_TTL_SECONDS).toBe(604_800);
     expect(userUpdate).toHaveBeenCalledWith({
       refreshTokenHash: 'hashed-password',
     });

@@ -7,8 +7,8 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import {
-  ACCESS_TOKEN_MAX_AGE_MS,
-  REFRESH_TOKEN_MAX_AGE_MS,
+  ACCESS_TOKEN_TTL_SECONDS,
+  REFRESH_TOKEN_TTL_SECONDS,
 } from './auth.constants.js';
 import { ConfigService } from '@nestjs/config';
 import type { JwtService } from '@nestjs/jwt';
@@ -182,16 +182,14 @@ export class AuthService {
         { sub: userId, email, tokenType: 'access' },
         {
           secret: this.configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
-          // We divide by 1000 because the `expiresIn` option expects seconds, not milliseconds.
-          expiresIn: ACCESS_TOKEN_MAX_AGE_MS / 1000,
+          expiresIn: ACCESS_TOKEN_TTL_SECONDS,
         },
       ),
       this.jwtService.signAsync(
         { sub: userId, email, tokenType: 'refresh' },
         {
           secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
-          // We divide by 1000 because the `expiresIn` option expects seconds, not milliseconds.
-          expiresIn: REFRESH_TOKEN_MAX_AGE_MS / 1000,
+          expiresIn: REFRESH_TOKEN_TTL_SECONDS,
         },
       ),
     ]);
