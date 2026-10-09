@@ -129,7 +129,7 @@ describe('AuthController', () => {
       tokens.refreshToken,
       expect.objectContaining({
         maxAge: REFRESH_TOKEN_MAX_AGE_MS,
-        path: '/auth',
+        path: '/api/auth',
       }),
     );
   });
@@ -188,7 +188,7 @@ describe('AuthController', () => {
     );
     expect(res.clearCookie).toHaveBeenCalledWith(
       REFRESH_TOKEN_COOKIE,
-      expect.objectContaining({ path: '/auth' }),
+      expect.objectContaining({ path: '/api/auth' }),
     );
   });
 
@@ -213,7 +213,7 @@ describe('AuthController', () => {
     );
     expect(res.clearCookie).toHaveBeenCalledWith(
       REFRESH_TOKEN_COOKIE,
-      expect.objectContaining({ path: '/auth' }),
+      expect.objectContaining({ path: '/api/auth' }),
     );
   });
 });

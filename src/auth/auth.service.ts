@@ -14,7 +14,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { createHash, randomBytes } from 'node:crypto';
-import { db } from '../prisma/db.js';
+import { PrismaService } from '../prisma/prisma.service.js';
 import { RegisterWithEmailPasswordDto } from './dto/register-with-email-password.dto.js';
 import type { RegisteredUserData } from './types/auth.js';
 import { EmailService } from './email.service.js';
@@ -28,6 +28,7 @@ export class AuthService {
     private readonly emailService: EmailService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly prisma: PrismaService,
   ) {}
 
   // REGISTER
@@ -38,7 +39,7 @@ export class AuthService {
 
     const email = input.email.trim().toLowerCase();
 
-    const exists = await db.orm.public.User.where({
+    const exists = await this.prisma.public.User.where({
       email,
     }).first();
 
@@ -46,7 +47,7 @@ export class AuthService {
       throw new ConflictException('User with this email already exists');
     }
 
-    const result = await db.orm.public.User.create({
+    const result = await this.prisma.public.User.create({
       email,
       hashedPassword,
       displayName: input.displayName?.trim(),
@@ -63,7 +64,7 @@ export class AuthService {
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
 
     // Persist the token hash and its expiry against the new user.
-    await db.orm.public.EmailVerificationToken.create({
+    await this.prisma.public.EmailVerificationToken.create({
       userId: result.id,
       tokenHash,
       expiresAt,
@@ -92,7 +93,7 @@ export class AuthService {
     const now = new Date().toISOString();
 
     // Consume the token and verify its account atomically.
-    await db.transaction(async (tx) => {
+    await this.prisma.client.transaction(async (tx) => {
       // Find the token record by its hash, never by the raw token.
       const verification = await tx.orm.public.EmailVerificationToken.where(
         (record) => record.tokenHash.eq(tokenHash),
@@ -143,7 +144,9 @@ export class AuthService {
     user: LoginUserData;
   }> {
     const email = input.email.trim().toLowerCase();
-    const user = await db.orm.public.User.where({ email }).first();
+    const user = await this.prisma.public.User.where({
+      email,
+    }).first();
 
     if (!user || !(await bcrypt.compare(input.password, user.hashedPassword))) {
       throw new UnauthorizedException('Invalid credentials');
@@ -205,14 +208,14 @@ export class AuthService {
   ): Promise<void> {
     const hash = await bcrypt.hash(refreshToken, 12);
 
-    await db.orm.public.User.where({ id: userId }).update({
+    await this.prisma.public.User.where({ id: userId }).update({
       refreshTokenHash: hash,
     });
   }
 
   // REFRESH TOKEN
   async refresh(userId: string, refreshToken: string) {
-    const user = await db.orm.public.User.where({ id: userId })
+    const user = await this.prisma.public.User.where({ id: userId })
       .select('id', 'email', 'refreshTokenHash')
       .first();
 
@@ -236,7 +239,7 @@ export class AuthService {
 
   // LOGOUT
   async logout(userId: string, refreshToken: string) {
-    const user = await db.orm.public.User.where({ id: userId })
+    const user = await this.prisma.public.User.where({ id: userId })
       .select('refreshTokenHash')
       .first();
 
@@ -247,7 +250,7 @@ export class AuthService {
     const isValid = await bcrypt.compare(refreshToken, user.refreshTokenHash);
 
     if (isValid) {
-      await db.orm.public.User.where({ id: userId }).update({
+      await this.prisma.public.User.where({ id: userId }).update({
         refreshTokenHash: null,
       });
     }
@@ -255,7 +258,7 @@ export class AuthService {
 
   // GET CURRENT USER
   async getCurrentUser(userId: string): Promise<LoginUserData> {
-    const user = await db.orm.public.User.where({ id: userId })
+    const user = await this.prisma.public.User.where({ id: userId })
       .select('id', 'email', 'displayName', 'isManager', 'mobile', 'avatarUrl')
       .first();
 

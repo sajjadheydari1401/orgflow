@@ -13,6 +13,7 @@ import type { EmailService } from './email.service.js';
 import type { LoginWithEmailPasswordDto } from './dto/login-with-email-password.dto.js';
 import type { JwtService } from '@nestjs/jwt';
 import type { ConfigService } from '@nestjs/config';
+import type { PrismaService } from '../prisma/prisma.service.js';
 import {
   ACCESS_TOKEN_TTL_SECONDS,
   REFRESH_TOKEN_TTL_SECONDS,
@@ -100,17 +101,15 @@ const transaction = jest.fn(
     callback(transactionContext),
 );
 
-jest.unstable_mockModule('../prisma/db.js', () => ({
-  db: {
-    transaction,
-    orm: {
-      public: {
-        User: { where: userWhere, create: userCreate },
-        EmailVerificationToken: { create: tokenCreate },
-      },
-    },
+const prismaService = {
+  public: {
+    User: { where: userWhere, create: userCreate },
+    EmailVerificationToken: { create: tokenCreate },
   },
-}));
+  client: {
+    transaction,
+  },
+};
 
 jest.unstable_mockModule('bcrypt', () => ({
   hash: hashPassword,
@@ -154,6 +153,7 @@ describe('AuthService', () => {
       { sendVerificationEmail } as unknown as EmailService,
       { signAsync: signToken } as unknown as JwtService,
       configService as unknown as ConfigService,
+      prismaService as unknown as PrismaService,
     );
   });
 
