@@ -23,8 +23,9 @@ import type { LoginUserData } from './types/auth.js';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
-    private readonly logger: Logger,
     private readonly emailService: EmailService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
@@ -74,7 +75,7 @@ export class AuthService {
     await this.emailService.sendVerificationEmail(email, token);
 
     // Log registration without including the token or password.
-    this.logger.log('User registered successfully', AuthService.name);
+    this.logger.log('User registered successfully');
 
     return {
       id: result.id,
@@ -162,7 +163,7 @@ export class AuthService {
 
     await this.storeRefreshTokenHash(user.id, tokens.refreshToken);
 
-    this.logger.log('User logged in successfully', AuthService.name);
+    this.logger.log('User logged in successfully');
 
     const userData: LoginUserData = {
       id: user.id,

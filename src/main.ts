@@ -13,7 +13,7 @@ async function bootstrap() {
     origin: process.env.FRONTEND_URL,
     credentials: true,
   });
-  const logger = app.get(Logger);
+  const logger = new Logger();
   const configService = app.get(ConfigService);
   const port = Number(configService.get('APP_PORT', '4000'));
   const appUrl = configService.get('APP_URL', `http://localhost:${port}/api`);

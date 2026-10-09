@@ -2,7 +2,6 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
-  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { jest } from '@jest/globals';
@@ -149,7 +148,6 @@ describe('AuthService', () => {
     transaction.mockClear();
 
     service = new AuthService(
-      { log: jest.fn() } as unknown as Logger,
       { sendVerificationEmail } as unknown as EmailService,
       { signAsync: signToken } as unknown as JwtService,
       configService as unknown as ConfigService,
