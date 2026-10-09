@@ -176,6 +176,7 @@ export class AuthService {
     };
   }
 
+  // GENERATE TOKENS
   private async generateTokens(userId: string, email: string) {
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(
@@ -197,6 +198,7 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
+  // STORE REFRESH TOKEN HASH
   private async storeRefreshTokenHash(
     userId: string,
     refreshToken: string,
@@ -208,6 +210,7 @@ export class AuthService {
     });
   }
 
+  // REFRESH TOKEN
   async refresh(userId: string, refreshToken: string) {
     const user = await db.orm.public.User.where({ id: userId })
       .select('id', 'email', 'refreshTokenHash')
@@ -231,6 +234,7 @@ export class AuthService {
     return { tokens };
   }
 
+  // LOGOUT
   async logout(userId: string, refreshToken: string) {
     const user = await db.orm.public.User.where({ id: userId })
       .select('refreshTokenHash')
