@@ -11,7 +11,7 @@ import {
   REFRESH_TOKEN_TTL_SECONDS,
 } from './auth.constants.js';
 import { ConfigService } from '@nestjs/config';
-import type { JwtService } from '@nestjs/jwt';
+import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { createHash, randomBytes } from 'node:crypto';
 import { db } from '../prisma/db.js';
