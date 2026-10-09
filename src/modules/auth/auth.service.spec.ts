@@ -12,7 +12,7 @@ import type { EmailService } from './email.service.js';
 import type { LoginWithEmailPasswordDto } from './dto/login-with-email-password.dto.js';
 import type { JwtService } from '@nestjs/jwt';
 import type { ConfigService } from '@nestjs/config';
-import type { PrismaService } from '../prisma/prisma.service.js';
+import type { PrismaService } from '../../prisma/prisma.service.js';
 import {
   ACCESS_TOKEN_TTL_SECONDS,
   REFRESH_TOKEN_TTL_SECONDS,

@@ -14,7 +14,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { createHash, randomBytes } from 'node:crypto';
-import { PrismaService } from '../prisma/prisma.service.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
 import { RegisterWithEmailPasswordDto } from './dto/register-with-email-password.dto.js';
 import type { RegisteredUserData } from './types/auth.js';
 import { EmailService } from './email.service.js';

@@ -11,7 +11,7 @@ import { EmailService } from './email.service.js';
 import { ACCESS_TOKEN_TTL_SECONDS } from './auth.constants.js';
 import { RefreshTokenGuard } from './guards/refresh-token.guard.js';
 import { RefreshTokenStrategy } from './strategies/refresh-token.strategy.js';
-import { PrismaModule } from '../prisma/prisma.module.js';
+import { PrismaModule } from '../../prisma/prisma.module.js';
 
 @Module({
   imports: [
