@@ -1,4 +1,4 @@
-import type { Models } from '../../../prisma/contract.d.js';
+import type { Models } from '../../../../prisma/contract.d.js';
 
 export type PermissionAction = Models.public_Permission['action'];
 

@@ -1,11 +1,13 @@
 import { Module } from '@nestjs/common';
-import { AuthorizationController } from './authorization.controller.js';
-import { AuthorizationService } from './authorization.service.js';
 import { PrismaModule } from '../../prisma/prisma.module.js';
+import { PermissionsController } from './permissions/permissions.controller.js';
+import { PermissionsService } from './permissions/permissions.service.js';
+import { ResourcesController } from './resources/resources.controller.js';
+import { ResourcesService } from './resources/resources.service.js';
 
 @Module({
   imports: [PrismaModule],
-  controllers: [AuthorizationController],
-  providers: [AuthorizationService],
+  controllers: [ResourcesController, PermissionsController],
+  providers: [ResourcesService, PermissionsService],
 })
 export class AuthorizationModule {}
