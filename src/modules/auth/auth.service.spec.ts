@@ -70,6 +70,9 @@ const tokenCreate = jest.fn(async (token: (typeof storedTokens)[number]) => {
 const sendVerificationEmail = jest.fn(async (email: string, token: string) => {
   sentEmails.push({ email, token });
 });
+const sendPasswordResetEmail = jest.fn(async (email: string, token: string) => {
+  sentEmails.push({ email, token });
+});
 const hashPassword = jest.fn(async () => 'hashed-password');
 const comparePassword = jest.fn(async () => true);
 const signToken = jest.fn(async (payload: { tokenType: string }) =>
@@ -136,6 +139,7 @@ describe('AuthService', () => {
     userCreate.mockClear();
     tokenCreate.mockClear();
     sendVerificationEmail.mockClear();
+    sendPasswordResetEmail.mockClear();
     tokenFirst.mockClear();
     tokenUpdateAll.mockClear();
     userUpdateAll.mockClear();
@@ -148,7 +152,10 @@ describe('AuthService', () => {
     transaction.mockClear();
 
     service = new AuthService(
-      { sendVerificationEmail } as unknown as EmailService,
+      {
+        sendVerificationEmail,
+        sendPasswordResetEmail,
+      } as unknown as EmailService,
       { signAsync: signToken } as unknown as JwtService,
       configService as unknown as ConfigService,
       prismaService as unknown as PrismaService,
@@ -199,6 +206,66 @@ describe('AuthService', () => {
     expect(userCreate).not.toHaveBeenCalled();
     expect(tokenCreate).not.toHaveBeenCalled();
     expect(sendVerificationEmail).not.toHaveBeenCalled();
+  });
+
+  it('sends a password reset link when the user exists', async () => {
+    authUser = {
+      ...createdUser,
+      hashedPassword: 'stored-password-hash',
+      emailVerifiedAt: new Date().toISOString(),
+      mobile: null,
+      avatarUrl: null,
+      refreshTokenHash: null,
+    };
+
+    await expect(
+      service.forgotPassword({ email: ' Person@Example.com ' }),
+    ).resolves.toEqual({
+      message:
+        'If an account exists with this email, a reset link has been sent.',
+    });
+
+    expect(userWhere).toHaveBeenCalledWith({ email: 'person@example.com' });
+    expect(tokenCreate).toHaveBeenCalledTimes(1);
+    expect(sendPasswordResetEmail).toHaveBeenCalledTimes(1);
+    expect(sentEmails[0].email).toBe('person@example.com');
+  });
+
+  it('resets a password using a valid password-reset token', async () => {
+    verificationRecord = {
+      id: 'token-1',
+      tokenHash: createHash('sha256').update('reset-token').digest('hex'),
+      userId: createdUser.id,
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      usedAt: null,
+    };
+
+    await expect(
+      service.resetPassword({
+        token: 'reset-token',
+        password: 'newPassword123',
+      }),
+    ).resolves.toEqual({ reset: true });
+
+    expect(tokenUpdateAll).toHaveBeenCalledWith({
+      usedAt: expect.any(String),
+    });
+    expect(userUpdateAll).toHaveBeenCalledWith({
+      hashedPassword: 'hashed-password',
+      refreshTokenHash: null,
+    });
+  });
+
+  it('rejects a password reset when the token is invalid', async () => {
+    await expect(
+      service.resetPassword({
+        token: 'unknown-token',
+        password: 'newPassword123',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(tokenUpdateAll).not.toHaveBeenCalled();
+    expect(userUpdateAll).not.toHaveBeenCalled();
   });
 
   it('consumes a valid token and marks its user email verified', async () => {

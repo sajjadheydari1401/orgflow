@@ -17,6 +17,8 @@ import { ThrottlerGuard } from '@nestjs/throttler';
 import { RegisterWithEmailPasswordDto } from './dto/register-with-email-password.dto.js';
 import { VerifyEmailDto } from './dto/verify-email.dto.js';
 import { LoginWithEmailPasswordDto } from './dto/login-with-email-password.dto.js';
+import { ForgotPasswordDto } from './dto/forgot-password.dto.js';
+import { ResetPasswordDto } from './dto/reset-password.dto.js';
 
 import { AuthService } from './auth.service.js';
 import { REFRESH_TOKEN_COOKIE } from './auth.constants.js';
@@ -43,6 +45,23 @@ export class AuthController {
   @UseGuards(ThrottlerGuard)
   verifyEmail(@Query() input: VerifyEmailDto) {
     return this.authService.verifyEmail(input.token);
+  }
+
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(ThrottlerGuard)
+  forgotPassword(@Body() input: ForgotPasswordDto) {
+    return this.authService.forgotPassword({ email: input.email });
+  }
+
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(ThrottlerGuard)
+  resetPassword(@Body() input: ResetPasswordDto) {
+    return this.authService.resetPassword({
+      token: input.token,
+      password: input.password,
+    });
   }
 
   @Post('login')

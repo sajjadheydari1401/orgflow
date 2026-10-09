@@ -45,6 +45,19 @@ describe('EmailService', () => {
     });
   });
 
+  it('sends a password reset link through Resend', async () => {
+    await service.sendPasswordResetEmail('person@example.com', 'token+/=');
+
+    expect(send).toHaveBeenCalledWith({
+      from: 'OrgFlow <verify@example.com>',
+      to: 'person@example.com',
+      subject: 'Reset your password',
+      text: expect.stringContaining(
+        'http://localhost:4000/api/auth/reset-password?token=token%2B%2F%3D',
+      ),
+    });
+  });
+
   it('throws when Resend reports a delivery error', async () => {
     send.mockImplementationOnce(async () => ({
       error: new Error('delivery failed'),

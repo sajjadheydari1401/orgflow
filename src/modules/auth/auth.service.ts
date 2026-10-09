@@ -136,6 +136,91 @@ export class AuthService {
     return { verified: true };
   }
 
+  // FORGOT PASSWORD
+  async forgotPassword(input: { email: string }): Promise<{
+    message: string;
+  }> {
+    const email = input.email.trim().toLowerCase();
+
+    const user = await this.prisma.public.User.where({ email })
+      .select('id', 'email')
+      .first();
+
+    if (!user) {
+      return {
+        message:
+          'If an account exists with this email, a reset link has been sent.',
+      };
+    }
+
+    const token = randomBytes(32).toString('base64url');
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+
+    await this.prisma.public.EmailVerificationToken.create({
+      userId: user.id,
+      tokenHash,
+      expiresAt,
+    });
+
+    await this.emailService.sendPasswordResetEmail(email, token);
+
+    return {
+      message:
+        'If an account exists with this email, a reset link has been sent.',
+    };
+  }
+
+  // RESET PASSWORD
+  async resetPassword(input: {
+    token: string;
+    password: string;
+  }): Promise<{ reset: true }> {
+    const tokenHash = createHash('sha256').update(input.token).digest('hex');
+    const now = new Date().toISOString();
+
+    // Consume the token and reset the password atomically to prevent race conditions.
+    await this.prisma.client.transaction(async (tx) => {
+      // Find the token record by its hash, never by the raw token.
+      const passwordReset = await tx.orm.public.EmailVerificationToken.where(
+        (record) => record.tokenHash.eq(tokenHash),
+      ).first();
+
+      // Reject unknown, already-used, or expired tokens.
+      if (
+        !passwordReset ||
+        passwordReset.usedAt !== null ||
+        Date.parse(passwordReset.expiresAt) <= Date.now()
+      ) {
+        throw new BadRequestException('Reset token is invalid or expired');
+      }
+
+      // Claim the token only if it is still unused and unexpired.
+      const consumed = await tx.orm.public.EmailVerificationToken.where(
+        (record) => record.id.eq(passwordReset.id),
+      )
+        .where((record) => record.usedAt.isNull())
+        .where((record) => record.expiresAt.gt(now))
+        .updateAll({ usedAt: now });
+
+      // A zero-row update means another request already consumed the token.
+      if (consumed.length !== 1) {
+        throw new BadRequestException('Reset token is invalid or expired');
+      }
+
+      // Hash the new password and update the user's record.
+      const hashedPassword = await bcrypt.hash(input.password, 12);
+
+      // Clear the refresh token hash to log out all sessions after a password reset.
+      await tx.orm.public.User.where({ id: passwordReset.userId }).updateAll({
+        hashedPassword,
+        refreshTokenHash: null,
+      });
+    });
+
+    return { reset: true };
+  }
+
   //LOGIN
   async loginWithEmailPassword(input: LoginWithEmailPasswordDto): Promise<{
     tokens: {

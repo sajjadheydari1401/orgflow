@@ -86,6 +86,44 @@ describe('AuthController', () => {
     expect(getCurrentUser).toHaveBeenCalledWith('user-1');
   });
 
+  it('requests a password reset link for the provided email', async () => {
+    const forgotPassword = jest.fn(async () => ({
+      message:
+        'If an account exists with this email, a reset link has been sent.',
+    }));
+    const controller = new AuthController({
+      forgotPassword,
+    } as unknown as AuthService);
+
+    await expect(
+      controller.forgotPassword({ email: 'person@example.com' }),
+    ).resolves.toEqual({
+      message:
+        'If an account exists with this email, a reset link has been sent.',
+    });
+    expect(forgotPassword).toHaveBeenCalledWith({
+      email: 'person@example.com',
+    });
+  });
+
+  it('resets a password with a valid token', async () => {
+    const resetPassword = jest.fn(async () => ({ reset: true as const }));
+    const controller = new AuthController({
+      resetPassword,
+    } as unknown as AuthService);
+
+    await expect(
+      controller.resetPassword({
+        token: 'verification-token',
+        password: 'newPassword123',
+      }),
+    ).resolves.toEqual({ reset: true });
+    expect(resetPassword).toHaveBeenCalledWith({
+      token: 'verification-token',
+      password: 'newPassword123',
+    });
+  });
+
   it('logs in and sets access and refresh cookies', async () => {
     const input: LoginWithEmailPasswordDto = {
       email: 'person@example.com',
