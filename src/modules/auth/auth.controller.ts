@@ -30,7 +30,7 @@ import { RefreshTokenGuard } from './guards/refresh-token.guard.js';
 import type { Response } from 'express';
 import type { AuthenticatedRequest, LoginUserData } from './types/auth.js';
 
-@ApiTags('auth')
+@ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}

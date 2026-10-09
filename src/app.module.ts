@@ -5,7 +5,7 @@ import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { SuccessResponseInterceptor } from './common/interceptors/success-response.interceptor.js';
-import { AuthorizationModule } from './modules/authorization/authorization.module';
+import { AuthorizationModule } from './modules/authorization/authorization.module.js';
 
 @Module({
   imports: [ConfigModule.forRoot({ isGlobal: true }), AuthModule, AuthorizationModule],
