@@ -30,7 +30,8 @@ async function bootstrap() {
 
   const config = new DocumentBuilder().setTitle('OrgFlow API').build();
   SwaggerModule.setup('docs', app, SwaggerModule.createDocument(app, config), {
-    swaggerOptions: { useGlobalPrefix: true, persistAuthorization: true },
+    useGlobalPrefix: true,
+    swaggerOptions: { persistAuthorization: true },
   });
 
   await app.listen(port);
