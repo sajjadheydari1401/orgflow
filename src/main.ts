@@ -28,10 +28,7 @@ async function bootstrap() {
     }),
   );
 
-  const config = new DocumentBuilder()
-    .setTitle('OrgFlow API')
-    .addBearerAuth()
-    .build();
+  const config = new DocumentBuilder().setTitle('OrgFlow API').build();
   SwaggerModule.setup('docs', app, SwaggerModule.createDocument(app, config), {
     swaggerOptions: { useGlobalPrefix: true, persistAuthorization: true },
   });
