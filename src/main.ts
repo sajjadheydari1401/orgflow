@@ -15,7 +15,7 @@ async function bootstrap() {
   });
   const logger = app.get(Logger);
   const configService = app.get(ConfigService);
-  const port = Number(configService.get('APP_PORT', '3001'));
+  const port = Number(configService.get('APP_PORT', '4000'));
   const appUrl = configService.get('APP_URL', `http://localhost:${port}/api`);
   app.useGlobalFilters(new GlobalExceptionFilter());
   app.setGlobalPrefix('api');

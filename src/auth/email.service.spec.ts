@@ -23,7 +23,7 @@ describe('EmailService', () => {
     const configValues: Record<string, string> = {
       RESEND_API_KEY: 'test-api-key',
       RESEND_FROM_EMAIL: 'OrgFlow <verify@example.com>',
-      APP_URL: 'http://localhost:3001/api/',
+      APP_URL: 'http://localhost:4000/api/',
     };
     const configService = {
       getOrThrow: (key: string) => configValues[key],
@@ -40,7 +40,7 @@ describe('EmailService', () => {
       to: 'person@example.com',
       subject: 'Verify your email address',
       text: expect.stringContaining(
-        'http://localhost:3001/api/auth/verify-email?token=token%2B%2F%3D',
+        'http://localhost:4000/api/auth/verify-email?token=token%2B%2F%3D',
       ),
     });
   });
