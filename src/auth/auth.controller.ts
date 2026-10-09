@@ -22,6 +22,7 @@ import { AuthService } from './auth.service.js';
 import { REFRESH_TOKEN_COOKIE } from './auth.constants.js';
 import { clearAuthCookies, setAuthCookies } from './auth-cookies.js';
 
+import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
 import { RefreshTokenGuard } from './guards/refresh-token.guard.js';
 
 import type { Response } from 'express';
@@ -104,5 +105,11 @@ export class AuthController {
     clearAuthCookies(res);
 
     return { message: 'Logged out successfully' };
+  }
+
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  getCurrentUser(@Req() req: AuthenticatedRequest): Promise<LoginUserData> {
+    return this.authService.getCurrentUser(req.user.userId);
   }
 }

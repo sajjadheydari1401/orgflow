@@ -370,6 +370,42 @@ describe('AuthService', () => {
     expect(userUpdate).not.toHaveBeenCalled();
   });
 
+  it('returns the current user profile without sensitive fields', async () => {
+    authUser = {
+      ...createdUser,
+      hashedPassword: 'stored-password-hash',
+      emailVerifiedAt: new Date().toISOString(),
+      mobile: '555-0100',
+      avatarUrl: 'https://example.com/avatar.png',
+      refreshTokenHash: 'stored-refresh-hash',
+    };
+
+    await expect(service.getCurrentUser(createdUser.id)).resolves.toEqual({
+      id: createdUser.id,
+      email: createdUser.email,
+      displayName: createdUser.displayName,
+      isManager: createdUser.isManager,
+      mobile: '555-0100',
+      avatar: 'https://example.com/avatar.png',
+    });
+
+    expect(userWhere).toHaveBeenCalledWith({ id: createdUser.id });
+    expect(userQuery.select).toHaveBeenCalledWith(
+      'id',
+      'email',
+      'displayName',
+      'isManager',
+      'mobile',
+      'avatarUrl',
+    );
+  });
+
+  it('rejects current-user lookup when the user no longer exists', async () => {
+    await expect(service.getCurrentUser('deleted-user')).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
+  });
+
   it('rotates a valid refresh token and persists the replacement hash', async () => {
     authUser = {
       ...createdUser,

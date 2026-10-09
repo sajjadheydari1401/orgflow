@@ -65,6 +65,27 @@ describe('AuthController', () => {
     expect(verifyEmail).toHaveBeenCalledWith('verification-token');
   });
 
+  it('returns the currently authenticated user', async () => {
+    const user: LoginUserData = {
+      id: 'user-1',
+      email: 'person@example.com',
+      displayName: 'Person Example',
+      isManager: false,
+      mobile: null,
+      avatar: null,
+    };
+    const getCurrentUser = jest.fn(async () => user);
+    const controller = new AuthController({
+      getCurrentUser,
+    } as unknown as AuthService);
+    const req = {
+      user: { userId: 'user-1', email: user.email },
+    } as unknown as AuthenticatedRequest;
+
+    await expect(controller.getCurrentUser(req)).resolves.toBe(user);
+    expect(getCurrentUser).toHaveBeenCalledWith('user-1');
+  });
+
   it('logs in and sets access and refresh cookies', async () => {
     const input: LoginWithEmailPasswordDto = {
       email: 'person@example.com',
