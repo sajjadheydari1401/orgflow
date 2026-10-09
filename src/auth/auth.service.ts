@@ -176,26 +176,6 @@ export class AuthService {
     };
   }
 
-  // GET CURRENT USER
-  async getCurrentUser(userId: string): Promise<LoginUserData> {
-    const user = await db.orm.public.User.where({ id: userId })
-      .select('id', 'email', 'displayName', 'isManager', 'mobile', 'avatarUrl')
-      .first();
-
-    if (!user) {
-      throw new UnauthorizedException('Authenticated user no longer exists');
-    }
-
-    return {
-      id: user.id,
-      email: user.email,
-      displayName: user.displayName,
-      isManager: user.isManager,
-      mobile: user.mobile,
-      avatar: user.avatarUrl,
-    };
-  }
-
   // GENERATE TOKENS
   private async generateTokens(userId: string, email: string) {
     const [accessToken, refreshToken] = await Promise.all([
@@ -271,5 +251,25 @@ export class AuthService {
         refreshTokenHash: null,
       });
     }
+  }
+
+  // GET CURRENT USER
+  async getCurrentUser(userId: string): Promise<LoginUserData> {
+    const user = await db.orm.public.User.where({ id: userId })
+      .select('id', 'email', 'displayName', 'isManager', 'mobile', 'avatarUrl')
+      .first();
+
+    if (!user) {
+      throw new UnauthorizedException('Authenticated user no longer exists');
+    }
+
+    return {
+      id: user.id,
+      email: user.email,
+      displayName: user.displayName,
+      isManager: user.isManager,
+      mobile: user.mobile,
+      avatar: user.avatarUrl,
+    };
   }
 }
