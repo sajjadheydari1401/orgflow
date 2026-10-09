@@ -19,59 +19,18 @@ import { VerifyEmailDto } from './dto/verify-email.dto.js';
 import { LoginWithEmailPasswordDto } from './dto/login-with-email-password.dto.js';
 
 import { AuthService } from './auth.service.js';
-import {
-  ACCESS_TOKEN_COOKIE,
-  ACCESS_TOKEN_MAX_AGE_MS,
-  REFRESH_TOKEN_COOKIE,
-  REFRESH_TOKEN_MAX_AGE_MS,
-} from './auth.constants.js';
+import { REFRESH_TOKEN_COOKIE } from './auth.constants.js';
+import { clearAuthCookies, setAuthCookies } from './auth-cookies.js';
 
 import { RefreshTokenGuard } from './guards/refresh-token.guard.js';
 
 import type { Response } from 'express';
 import type { AuthenticatedRequest, LoginUserData } from './types/auth.js';
 
-const accessCookieOptions = {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: 'lax' as const,
-  path: '/',
-};
-
-const refreshCookieOptions = {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: 'lax' as const,
-  path: '/auth',
-};
-
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
-
-  private setAuthCookies(
-    res: Response,
-    tokens: {
-      accessToken: string;
-      refreshToken: string;
-    },
-  ): void {
-    res.cookie(ACCESS_TOKEN_COOKIE, tokens.accessToken, {
-      ...accessCookieOptions,
-      maxAge: ACCESS_TOKEN_MAX_AGE_MS,
-    });
-
-    res.cookie(REFRESH_TOKEN_COOKIE, tokens.refreshToken, {
-      ...refreshCookieOptions,
-      maxAge: REFRESH_TOKEN_MAX_AGE_MS,
-    });
-  }
-
-  private clearAuthCookies(res: Response): void {
-    res.clearCookie(ACCESS_TOKEN_COOKIE, accessCookieOptions);
-    res.clearCookie(REFRESH_TOKEN_COOKIE, refreshCookieOptions);
-  }
 
   @Post('register')
   @UseGuards(ThrottlerGuard)
@@ -97,7 +56,7 @@ export class AuthController {
       password: input.password,
     });
 
-    this.setAuthCookies(res, result.tokens);
+    setAuthCookies(res, result.tokens);
 
     return { user: result.user };
   }
@@ -114,7 +73,7 @@ export class AuthController {
     // The guard normally rejects a missing or invalid refresh cookie.
     // Keep this check to avoid passing undefined to the service.
     if (!refreshToken) {
-      this.clearAuthCookies(res);
+      clearAuthCookies(res);
       throw new UnauthorizedException('Refresh token cookie is missing');
     }
 
@@ -124,7 +83,7 @@ export class AuthController {
     );
 
     // Rotate both cookies after the service validates and rotates tokens.
-    this.setAuthCookies(res, result.tokens);
+    setAuthCookies(res, result.tokens);
 
     return { message: 'Tokens refreshed successfully' };
   }
@@ -142,7 +101,7 @@ export class AuthController {
       await this.authService.logout(req.user.userId, refreshToken);
     }
 
-    this.clearAuthCookies(res);
+    clearAuthCookies(res);
 
     return { message: 'Logged out successfully' };
   }
