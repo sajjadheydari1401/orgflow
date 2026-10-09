@@ -1,9 +1,18 @@
-import { BadRequestException, ConflictException, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { jest } from '@jest/globals';
 import { createHash } from 'node:crypto';
 import type { RegisterWithEmailPasswordDto } from './dto/register-with-email-password.dto.js';
-import type { RegisteredUserData } from './types/registered-user-data.interface.js';
+import type { RegisteredUserData } from './types/auth.js';
 import type { EmailService } from './email.service.js';
+import type { LoginWithEmailPasswordDto } from './dto/login-with-email-password.dto.js';
+import type { JwtService } from '@nestjs/jwt';
+import type { ConfigService } from '@nestjs/config';
 
 type VerificationRecord = {
   id: string;
@@ -11,6 +20,14 @@ type VerificationRecord = {
   userId: string;
   expiresAt: string;
   usedAt: string | null;
+};
+
+type AuthUserRecord = RegisteredUserData & {
+  hashedPassword: string;
+  emailVerifiedAt: string | null;
+  mobile: string | null;
+  avatarUrl: string | null;
+  refreshTokenHash: string | null;
 };
 
 const createdUser: RegisteredUserData = {
@@ -21,6 +38,7 @@ const createdUser: RegisteredUserData = {
 };
 
 let existingUser: RegisteredUserData | null = null;
+let authUser: AuthUserRecord | null = null;
 let verificationRecord: VerificationRecord | null = null;
 let affectedVerificationRows = 1;
 const storedTokens: Array<{
@@ -30,12 +48,16 @@ const storedTokens: Array<{
 }> = [];
 const sentEmails: Array<{ email: string; token: string }> = [];
 
-const firstUser = jest.fn(async () => existingUser);
+const firstUser = jest.fn(async () => authUser ?? existingUser);
 const userUpdateAll = jest.fn(async () => [createdUser]);
-const userWhere = jest.fn(() => ({
+const userUpdate = jest.fn(async () => [authUser]);
+const userQuery = {
   first: firstUser,
+  select: jest.fn(() => userQuery),
   updateAll: userUpdateAll,
-}));
+  update: userUpdate,
+};
+const userWhere = jest.fn(() => userQuery);
 const userCreate = jest.fn(async () => createdUser);
 const tokenCreate = jest.fn(async (token: (typeof storedTokens)[number]) => {
   storedTokens.push(token);
@@ -45,6 +67,13 @@ const sendVerificationEmail = jest.fn(async (email: string, token: string) => {
   sentEmails.push({ email, token });
 });
 const hashPassword = jest.fn(async () => 'hashed-password');
+const comparePassword = jest.fn(async () => true);
+const signToken = jest.fn(async (payload: { tokenType: string }) =>
+  payload.tokenType === 'access' ? 'access-token' : 'refresh-token',
+);
+const configService = {
+  getOrThrow: jest.fn((key: string) => `${key}-value`),
+};
 const tokenFirst = jest.fn(async () => verificationRecord);
 const tokenUpdateAll = jest.fn(async () =>
   Array.from({ length: affectedVerificationRows }, () => ({ id: 'token-1' })),
@@ -79,7 +108,14 @@ jest.unstable_mockModule('../prisma/db.js', () => ({
   },
 }));
 
-jest.unstable_mockModule('bcrypt', () => ({ hash: hashPassword }));
+jest.unstable_mockModule('bcrypt', () => ({
+  hash: hashPassword,
+  compare: comparePassword,
+}));
+
+jest.unstable_mockModule('@nestjs/jwt', () => ({
+  JwtService: class JwtService {},
+}));
 
 const { AuthService } = await import('./auth.service.js');
 
@@ -88,6 +124,7 @@ describe('AuthService', () => {
 
   beforeEach(() => {
     existingUser = null;
+    authUser = null;
     verificationRecord = null;
     affectedVerificationRows = 1;
     storedTokens.length = 0;
@@ -100,11 +137,19 @@ describe('AuthService', () => {
     tokenFirst.mockClear();
     tokenUpdateAll.mockClear();
     userUpdateAll.mockClear();
+    userUpdate.mockClear();
+    userQuery.select.mockClear();
+    comparePassword.mockClear();
+    comparePassword.mockResolvedValue(true);
+    signToken.mockClear();
+    configService.getOrThrow.mockClear();
     transaction.mockClear();
 
     service = new AuthService(
       { log: jest.fn() } as unknown as Logger,
       { sendVerificationEmail } as unknown as EmailService,
+      { signAsync: signToken } as unknown as JwtService,
+      configService as unknown as ConfigService,
     );
   });
 
@@ -220,5 +265,161 @@ describe('AuthService', () => {
 
     expect(tokenUpdateAll).toHaveBeenCalledTimes(1);
     expect(userUpdateAll).not.toHaveBeenCalled();
+  });
+
+  it('authenticates a verified user, issues tokens, and stores the refresh hash', async () => {
+    authUser = {
+      ...createdUser,
+      hashedPassword: 'stored-password-hash',
+      emailVerifiedAt: new Date().toISOString(),
+      mobile: '555-0100',
+      avatarUrl: 'https://example.com/avatar.png',
+      refreshTokenHash: null,
+    };
+    const input: LoginWithEmailPasswordDto = {
+      email: ' Person@Example.com ',
+      password: 'password123',
+    };
+
+    await expect(service.loginWithEmailPassword(input)).resolves.toEqual({
+      user: {
+        id: createdUser.id,
+        email: createdUser.email,
+        displayName: createdUser.displayName,
+        isManager: createdUser.isManager,
+        mobile: '555-0100',
+        avatar: 'https://example.com/avatar.png',
+      },
+      tokens: { accessToken: 'access-token', refreshToken: 'refresh-token' },
+    });
+
+    expect(userWhere).toHaveBeenCalledWith({ email: 'person@example.com' });
+    expect(comparePassword).toHaveBeenCalledWith(
+      input.password,
+      'stored-password-hash',
+    );
+    expect(signToken).toHaveBeenCalledTimes(2);
+    expect(userUpdate).toHaveBeenCalledWith({
+      refreshTokenHash: 'hashed-password',
+    });
+  });
+
+  it('rejects login when the password is invalid', async () => {
+    authUser = {
+      ...createdUser,
+      hashedPassword: 'stored-password-hash',
+      emailVerifiedAt: new Date().toISOString(),
+      mobile: null,
+      avatarUrl: null,
+      refreshTokenHash: null,
+    };
+    comparePassword.mockResolvedValue(false);
+
+    await expect(
+      service.loginWithEmailPassword({
+        email: createdUser.email,
+        password: 'wrong-password',
+      }),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+
+    expect(signToken).not.toHaveBeenCalled();
+    expect(userUpdate).not.toHaveBeenCalled();
+  });
+
+  it('rejects login when the user email is not verified', async () => {
+    authUser = {
+      ...createdUser,
+      hashedPassword: 'stored-password-hash',
+      emailVerifiedAt: null,
+      mobile: null,
+      avatarUrl: null,
+      refreshTokenHash: null,
+    };
+
+    await expect(
+      service.loginWithEmailPassword({
+        email: createdUser.email,
+        password: 'password123',
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(signToken).not.toHaveBeenCalled();
+    expect(userUpdate).not.toHaveBeenCalled();
+  });
+
+  it('rotates a valid refresh token and persists the replacement hash', async () => {
+    authUser = {
+      ...createdUser,
+      hashedPassword: 'stored-password-hash',
+      emailVerifiedAt: new Date().toISOString(),
+      mobile: null,
+      avatarUrl: null,
+      refreshTokenHash: 'current-refresh-hash',
+    };
+
+    await expect(
+      service.refresh(createdUser.id, 'current-refresh-token'),
+    ).resolves.toEqual({
+      tokens: { accessToken: 'access-token', refreshToken: 'refresh-token' },
+    });
+
+    expect(comparePassword).toHaveBeenCalledWith(
+      'current-refresh-token',
+      'current-refresh-hash',
+    );
+    expect(userQuery.select).toHaveBeenCalledWith(
+      'id',
+      'email',
+      'refreshTokenHash',
+    );
+    expect(userUpdate).toHaveBeenCalledWith({
+      refreshTokenHash: 'hashed-password',
+    });
+  });
+
+  it('rejects an invalid refresh token without rotating it', async () => {
+    authUser = {
+      ...createdUser,
+      hashedPassword: 'stored-password-hash',
+      emailVerifiedAt: new Date().toISOString(),
+      mobile: null,
+      avatarUrl: null,
+      refreshTokenHash: 'current-refresh-hash',
+    };
+    comparePassword.mockResolvedValue(false);
+
+    await expect(
+      service.refresh(createdUser.id, 'invalid-refresh-token'),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+
+    expect(signToken).not.toHaveBeenCalled();
+    expect(userUpdate).not.toHaveBeenCalled();
+  });
+
+  it('clears the stored refresh hash on logout only when the token matches', async () => {
+    authUser = {
+      ...createdUser,
+      hashedPassword: 'stored-password-hash',
+      emailVerifiedAt: new Date().toISOString(),
+      mobile: null,
+      avatarUrl: null,
+      refreshTokenHash: 'current-refresh-hash',
+    };
+
+    await service.logout(createdUser.id, 'current-refresh-token');
+
+    expect(comparePassword).toHaveBeenCalledWith(
+      'current-refresh-token',
+      'current-refresh-hash',
+    );
+    expect(userQuery.select).toHaveBeenCalledWith('refreshTokenHash');
+    expect(userUpdate).toHaveBeenCalledWith({ refreshTokenHash: null });
+
+    userUpdate.mockClear();
+    comparePassword.mockResolvedValue(false);
+
+    await service.logout(createdUser.id, 'invalid-refresh-token');
+
+    expect(userUpdate).not.toHaveBeenCalled();
   });
 });

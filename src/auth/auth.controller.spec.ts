@@ -1,13 +1,31 @@
 import { jest } from '@jest/globals';
+import { UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service.js';
+import {
+  ACCESS_TOKEN_COOKIE,
+  ACCESS_TOKEN_MAX_AGE_MS,
+  REFRESH_TOKEN_COOKIE,
+  REFRESH_TOKEN_MAX_AGE_MS,
+} from './auth.constants.js';
+import type { LoginWithEmailPasswordDto } from './dto/login-with-email-password.dto.js';
 import type { RegisterWithEmailPasswordDto } from './dto/register-with-email-password.dto.js';
-import type { RegisteredUserData } from './types/registered-user-data.interface.js';
+import type {
+  AuthenticatedRequest,
+  LoginUserData,
+  RegisteredUserData,
+} from './types/auth.js';
+import type { Response } from 'express';
 
 jest.unstable_mockModule('@nestjs/throttler', () => ({
   ThrottlerGuard: class ThrottlerGuard {},
 }));
 
 const { AuthController } = await import('./auth.controller.js');
+
+const createResponse = () => ({
+  cookie: jest.fn(),
+  clearCookie: jest.fn(),
+});
 
 describe('AuthController', () => {
   it('passes registration input to the service and returns its result', async () => {
@@ -45,5 +63,136 @@ describe('AuthController', () => {
       verified: true,
     });
     expect(verifyEmail).toHaveBeenCalledWith('verification-token');
+  });
+
+  it('logs in and sets access and refresh cookies', async () => {
+    const input: LoginWithEmailPasswordDto = {
+      email: 'person@example.com',
+      password: 'password123',
+    };
+    const user: LoginUserData = {
+      id: 'user-1',
+      email: input.email,
+      displayName: 'Person Example',
+      isManager: false,
+      mobile: null,
+      avatar: null,
+    };
+    const tokens = {
+      accessToken: 'access-token',
+      refreshToken: 'refresh-token',
+    };
+    const loginWithEmailPassword = jest.fn(async () => ({ user, tokens }));
+    const controller = new AuthController({
+      loginWithEmailPassword,
+    } as unknown as AuthService);
+    const res = createResponse();
+
+    await expect(
+      controller.loginWithEmailPassword(input, res as unknown as Response),
+    ).resolves.toEqual({ user });
+
+    expect(loginWithEmailPassword).toHaveBeenCalledWith({
+      email: input.email,
+      password: input.password,
+    });
+    expect(res.cookie).toHaveBeenNthCalledWith(
+      1,
+      ACCESS_TOKEN_COOKIE,
+      tokens.accessToken,
+      expect.objectContaining({ maxAge: ACCESS_TOKEN_MAX_AGE_MS }),
+    );
+    expect(res.cookie).toHaveBeenNthCalledWith(
+      2,
+      REFRESH_TOKEN_COOKIE,
+      tokens.refreshToken,
+      expect.objectContaining({
+        maxAge: REFRESH_TOKEN_MAX_AGE_MS,
+        path: '/auth',
+      }),
+    );
+  });
+
+  it('refreshes tokens from the refresh cookie and replaces both cookies', async () => {
+    const tokens = { accessToken: 'new-access', refreshToken: 'new-refresh' };
+    const refresh = jest.fn(async () => ({ tokens }));
+    const controller = new AuthController({
+      refresh,
+    } as unknown as AuthService);
+    const req = {
+      user: { userId: 'user-1', email: 'person@example.com' },
+      cookies: { [REFRESH_TOKEN_COOKIE]: 'old-refresh' },
+    } as unknown as AuthenticatedRequest;
+    const res = createResponse();
+
+    await expect(
+      controller.refresh(req, res as unknown as Response),
+    ).resolves.toEqual({ message: 'Tokens refreshed successfully' });
+
+    expect(refresh).toHaveBeenCalledWith('user-1', 'old-refresh');
+    expect(res.cookie).toHaveBeenCalledTimes(2);
+    expect(res.cookie).toHaveBeenCalledWith(
+      ACCESS_TOKEN_COOKIE,
+      tokens.accessToken,
+      expect.objectContaining({ maxAge: ACCESS_TOKEN_MAX_AGE_MS }),
+    );
+    expect(res.cookie).toHaveBeenCalledWith(
+      REFRESH_TOKEN_COOKIE,
+      tokens.refreshToken,
+      expect.objectContaining({ maxAge: REFRESH_TOKEN_MAX_AGE_MS }),
+    );
+  });
+
+  it('clears auth cookies and rejects refresh when the cookie is missing', async () => {
+    const refresh = jest.fn(async () => ({
+      tokens: { accessToken: 'unused', refreshToken: 'unused' },
+    }));
+    const controller = new AuthController({
+      refresh,
+    } as unknown as AuthService);
+    const req = {
+      user: { userId: 'user-1', email: 'person@example.com' },
+      cookies: {},
+    } as unknown as AuthenticatedRequest;
+    const res = createResponse();
+
+    await expect(
+      controller.refresh(req, res as unknown as Response),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+
+    expect(refresh).not.toHaveBeenCalled();
+    expect(res.clearCookie).toHaveBeenCalledWith(
+      ACCESS_TOKEN_COOKIE,
+      expect.any(Object),
+    );
+    expect(res.clearCookie).toHaveBeenCalledWith(
+      REFRESH_TOKEN_COOKIE,
+      expect.objectContaining({ path: '/auth' }),
+    );
+  });
+
+  it('revokes the refresh token and clears auth cookies on logout', async () => {
+    const logout = jest.fn(async () => undefined);
+    const controller = new AuthController({ logout } as unknown as AuthService);
+    const req = {
+      user: { userId: 'user-1', email: 'person@example.com' },
+      cookies: { [REFRESH_TOKEN_COOKIE]: 'refresh-token' },
+    } as unknown as AuthenticatedRequest;
+    const res = createResponse();
+
+    await expect(
+      controller.logout(req, res as unknown as Response),
+    ).resolves.toEqual({ message: 'Logged out successfully' });
+
+    expect(logout).toHaveBeenCalledWith('user-1', 'refresh-token');
+    expect(res.clearCookie).toHaveBeenCalledTimes(2);
+    expect(res.clearCookie).toHaveBeenCalledWith(
+      ACCESS_TOKEN_COOKIE,
+      expect.any(Object),
+    );
+    expect(res.clearCookie).toHaveBeenCalledWith(
+      REFRESH_TOKEN_COOKIE,
+      expect.objectContaining({ path: '/auth' }),
+    );
   });
 });

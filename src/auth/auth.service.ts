@@ -1,23 +1,36 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   Logger,
+  UnauthorizedException,
 } from '@nestjs/common';
+import {
+  ACCESS_TOKEN_MAX_AGE_MS,
+  REFRESH_TOKEN_MAX_AGE_MS,
+} from './auth.constants.js';
+import { ConfigService } from '@nestjs/config';
+import type { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { createHash, randomBytes } from 'node:crypto';
 import { db } from '../prisma/db.js';
 import { RegisterWithEmailPasswordDto } from './dto/register-with-email-password.dto.js';
-import type { RegisteredUserData } from './types/registered-user-data.interface.js';
+import type { RegisteredUserData } from './types/auth.js';
 import { EmailService } from './email.service.js';
+import { LoginWithEmailPasswordDto } from './dto/login-with-email-password.dto.js';
+import type { LoginUserData } from './types/auth.js';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly logger: Logger,
     private readonly emailService: EmailService,
+    private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
   ) {}
 
+  // REGISTER
   async registerWithEmailPassword(
     input: RegisterWithEmailPasswordDto,
   ): Promise<RegisteredUserData> {
@@ -70,6 +83,7 @@ export class AuthService {
     };
   }
 
+  //EMAIL VERIFY
   async verifyEmail(token: string): Promise<{ verified: true }> {
     // Hash the submitted token to compare it with the stored hash.
     const tokenHash = createHash('sha256').update(token).digest('hex');
@@ -118,5 +132,122 @@ export class AuthService {
 
     // Signal successful verification to the controller.
     return { verified: true };
+  }
+
+  //LOGIN
+  async loginWithEmailPassword(input: LoginWithEmailPasswordDto): Promise<{
+    tokens: {
+      accessToken: string;
+      refreshToken: string;
+    };
+    user: LoginUserData;
+  }> {
+    const email = input.email.trim().toLowerCase();
+    const user = await db.orm.public.User.where({ email }).first();
+
+    if (!user || !(await bcrypt.compare(input.password, user.hashedPassword))) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (!user.emailVerifiedAt) {
+      throw new ForbiddenException(
+        'Please verify your email before logging in',
+      );
+    }
+
+    const tokens = await this.generateTokens(user.id, user.email);
+
+    await this.storeRefreshTokenHash(user.id, tokens.refreshToken);
+
+    this.logger.log('User logged in successfully', AuthService.name);
+
+    const userData: LoginUserData = {
+      id: user.id,
+      email: user.email,
+      displayName: user.displayName,
+      isManager: user.isManager,
+      mobile: user.mobile,
+      avatar: user.avatarUrl,
+    };
+
+    return {
+      user: userData,
+      tokens,
+    };
+  }
+
+  private async generateTokens(userId: string, email: string) {
+    const [accessToken, refreshToken] = await Promise.all([
+      this.jwtService.signAsync(
+        { sub: userId, email, tokenType: 'access' },
+        {
+          secret: this.configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
+          // We divide by 1000 because the `expiresIn` option expects seconds, not milliseconds.
+          expiresIn: ACCESS_TOKEN_MAX_AGE_MS / 1000,
+        },
+      ),
+      this.jwtService.signAsync(
+        { sub: userId, email, tokenType: 'refresh' },
+        {
+          secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
+          // We divide by 1000 because the `expiresIn` option expects seconds, not milliseconds.
+          expiresIn: REFRESH_TOKEN_MAX_AGE_MS / 1000,
+        },
+      ),
+    ]);
+
+    return { accessToken, refreshToken };
+  }
+
+  private async storeRefreshTokenHash(
+    userId: string,
+    refreshToken: string,
+  ): Promise<void> {
+    const hash = await bcrypt.hash(refreshToken, 12);
+
+    await db.orm.public.User.where({ id: userId }).update({
+      refreshTokenHash: hash,
+    });
+  }
+
+  async refresh(userId: string, refreshToken: string) {
+    const user = await db.orm.public.User.where({ id: userId })
+      .select('id', 'email', 'refreshTokenHash')
+      .first();
+
+    if (!user?.refreshTokenHash) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const isValid = await bcrypt.compare(refreshToken, user.refreshTokenHash);
+
+    if (!isValid) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const tokens = await this.generateTokens(user.id, user.email);
+
+    // Rotate the refresh token by storing the new token's hash.
+    await this.storeRefreshTokenHash(user.id, tokens.refreshToken);
+
+    return { tokens };
+  }
+
+  async logout(userId: string, refreshToken: string) {
+    const user = await db.orm.public.User.where({ id: userId })
+      .select('refreshTokenHash')
+      .first();
+
+    if (!user?.refreshTokenHash) {
+      return;
+    }
+
+    const isValid = await bcrypt.compare(refreshToken, user.refreshTokenHash);
+
+    if (isValid) {
+      await db.orm.public.User.where({ id: userId }).update({
+        refreshTokenHash: null,
+      });
+    }
   }
 }

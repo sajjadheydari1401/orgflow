@@ -3,11 +3,14 @@ import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ThrottlerModule } from '@nestjs/throttler';
-import { JwtAuthGuard } from './jwt-auth.guard.js';
-import { JwtStrategy } from './jwt.strategy.js';
+import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
+import { JwtStrategy } from './strategies/jwt.strategy.js';
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
 import { EmailService } from './email.service.js';
+import { ACCESS_TOKEN_MAX_AGE_MS } from './auth.constants.js';
+import { RefreshTokenGuard } from './guards/refresh-token.guard.js';
+import { RefreshTokenStrategy } from './strategies/refresh-token.strategy.js';
 
 @Module({
   imports: [
@@ -16,12 +19,19 @@ import { EmailService } from './email.service.js';
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
-        secret: configService.getOrThrow<string>('JWT_SECRET'),
-        signOptions: { expiresIn: '1h' },
+        secret: configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
+        signOptions: { expiresIn: ACCESS_TOKEN_MAX_AGE_MS / 1000 },
       }),
     }),
   ],
-  providers: [JwtStrategy, JwtAuthGuard, AuthService, EmailService],
+  providers: [
+    AuthService,
+    EmailService,
+    JwtStrategy,
+    RefreshTokenStrategy,
+    JwtAuthGuard,
+    RefreshTokenGuard,
+  ],
   exports: [JwtModule, PassportModule, JwtAuthGuard],
   controllers: [AuthController],
 })

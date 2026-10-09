@@ -22,7 +22,7 @@ export class SuccessResponseInterceptor<T> implements NestInterceptor<
       map((data: T) => ({
         success: true,
         code: response.statusCode,
-        message: 'Request successful',
+        message: 'Successful request!',
         data,
       })),
     );
