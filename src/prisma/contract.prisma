@@ -12,6 +12,7 @@ model User {
   createdAt               TimestamptzString          @default(now())
   updatedAt               temporal.updatedAtString()
   emailVerificationTokens EmailVerificationToken[]
+  roleAssignments         RoleAssignment[]
 }
 
 model EmailVerificationToken {
@@ -24,4 +25,107 @@ model EmailVerificationToken {
   user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+//AUTHORIZATION
+enum RoleScopeEnum {
+  SELF
+  DESCENDANTS
+}
+
+enum UnitTypeEnum {
+  TEAM
+  DEPARTMENT
+  MANAGEMENT
+}
+
+enum PermissionActionEnum {
+  READ
+  CREATE
+  UPDATE
+  DELETE
+  PATCH
+}
+
+model Resource {
+  id          String                     @id @default(uuid())
+  route       String                     @unique
+  createdAt   TimestamptzString          @default(now())
+  updatedAt   temporal.updatedAtString()
+  permissions Permission[]
+}
+
+model Permission {
+  id              String                     @id @default(uuid())
+  resourceId      String
+  action          PermissionActionEnum
+  createdAt       TimestamptzString          @default(now())
+  updatedAt       temporal.updatedAtString()
+  resource        Resource                   @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  rolePermissions RolePermission[]
+
+  @@unique([resourceId, action])
+  @@index([resourceId])
+}
+
+model Role {
+  id              String                     @id @default(uuid())
+  unitId          String
+  name            String
+  description     String?
+  scope           RoleScopeEnum              @default(DESCENDANTS)
+  isActive        Boolean                    @default(true)
+  createdAt       TimestamptzString          @default(now())
+  updatedAt       temporal.updatedAtString()
+  unit            Unit                       @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  rolePermissions RolePermission[]
+  roleAssignments RoleAssignment[]
+
+  @@unique([unitId, name])
+  @@index([unitId])
+}
+
+model RolePermission {
+  id           String                     @id @default(uuid())
+  roleId       String
+  permissionId String
+  createdAt    TimestamptzString          @default(now())
+  updatedAt    temporal.updatedAtString()
+  role         Role                       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission                 @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@index([roleId])
+  @@index([permissionId])
+}
+
+model RoleAssignment {
+  id        String                     @id @default(uuid())
+  userId    String
+  roleId    String
+  isActive  Boolean                    @default(true)
+  createdAt TimestamptzString          @default(now())
+  updatedAt temporal.updatedAtString()
+  user      User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      Role                       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@index([userId])
+  @@index([roleId])
+}
+
+model Unit {
+  id          String                     @id @default(uuid())
+  parentId    String?
+  name        String
+  type        UnitTypeEnum
+  description String?
+  isActive    Boolean                    @default(true)
+  createdAt   TimestamptzString          @default(now())
+  updatedAt   temporal.updatedAtString()
+  parent      Unit?                      @relation("UnitHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children    Unit[]                     @relation("UnitHierarchy")
+  roles       Role[]
+
+  @@index([parentId])
 }
