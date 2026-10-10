@@ -1,8 +1,9 @@
-import type { Models } from '../../../../prisma/contract.d.js';
+export enum RoleScopeEnum {
+  SELF = 'SELF',
+  DESCENDANTS = 'DESCENDANTS',
+}
 
-export type RoleScope = Models.public_Role['scope'];
-
-export const ROLE_SCOPES: RoleScope[] = ['SELF', 'DESCENDANTS'];
+export type RoleScope = `${RoleScopeEnum}`;
 
 export interface RoleData {
   id: string;

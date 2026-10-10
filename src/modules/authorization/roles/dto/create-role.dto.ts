@@ -8,7 +8,8 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
-import { ROLE_SCOPES, type RoleScope } from '../types/role.js';
+import { ROLE_SCOPES } from '../roles.constants.js';
+import type { RoleScope } from '../types/role.js';
 
 export class CreateRoleDto {
   @ApiProperty({ example: 'a8c9f6bb-8a34-4ac5-b0dc-6ea58a282f14' })
