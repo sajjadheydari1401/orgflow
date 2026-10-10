@@ -14,12 +14,10 @@ export class PermissionsService {
 
   //CREATE PERMISSION
   async createPermission(input: CreatePermissionDto): Promise<PermissionData> {
-    // Ensure the resource exists before creating a permission for it.
     const resource = await this.prisma.public.Resource.where({
       id: input.resourceId,
     }).first();
 
-    // If the resource does not exist, throw a NotFoundException.
     if (!resource) {
       throw new NotFoundException('Resource not found');
     }
@@ -30,14 +28,12 @@ export class PermissionsService {
       action: input.action,
     }).first();
 
-    // If a permission with the same action already exists for the resource, throw a ConflictException.
     if (existing) {
       throw new ConflictException(
         'This action is already assigned to the resource',
       );
     }
 
-    // Create the new permission with the provided input.
     return this.prisma.public.Permission.create({
       resourceId: input.resourceId,
       action: input.action,
@@ -69,7 +65,6 @@ export class PermissionsService {
     id: string,
     input: UpdatePermissionDto,
   ): Promise<PermissionData> {
-    // Ensure the permission exists before updating it.
     const existing = await this.prisma.public.Permission.where({ id }).first();
 
     if (!existing) {
@@ -113,7 +108,6 @@ export class PermissionsService {
 
   //DELETE PERMISSION
   async deletePermission(id: string): Promise<{ deleted: true }> {
-    // Ensure the permission exists before attempting to delete it.
     const existing = await this.prisma.public.Permission.where({ id }).first();
 
     if (!existing) {
@@ -125,7 +119,6 @@ export class PermissionsService {
       permissionId: id,
     }).first();
 
-    // If the permission is assigned to any roles, prevent deletion.
     if (rolePermission) {
       throw new ConflictException(
         'Cannot delete a permission while it is assigned to roles',
