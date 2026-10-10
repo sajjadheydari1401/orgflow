@@ -1,14 +1,12 @@
-import type { Models } from '../../../../prisma/contract.d.js';
+export enum PermissionActionEnum {
+  READ = 'READ',
+  CREATE = 'CREATE',
+  UPDATE = 'UPDATE',
+  DELETE = 'DELETE',
+  PATCH = 'PATCH',
+}
 
-export type PermissionAction = Models.public_Permission['action'];
-
-export const PERMISSION_ACTIONS: PermissionAction[] = [
-  'READ',
-  'CREATE',
-  'UPDATE',
-  'DELETE',
-  'PATCH',
-];
+export type PermissionAction = `${PermissionActionEnum}`;
 
 export interface PermissionData {
   id: string;
