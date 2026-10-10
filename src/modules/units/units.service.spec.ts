@@ -1,0 +1,235 @@
+import { ConflictException, NotFoundException } from '@nestjs/common';
+import { jest } from '@jest/globals';
+import type { PrismaService } from '../../prisma/prisma.service.js';
+import { UnitsService } from './units.service.js';
+import type { UnitData, UnitType } from './types/unit.js';
+
+const unit: UnitData = {
+  id: 'unit-1',
+  parentId: null,
+  name: 'Finance',
+  type: 'DEPARTMENT',
+  description: null,
+  isActive: true,
+  createdAt: '2026-10-10T00:00:00.000Z',
+  updatedAt: '2026-10-10T00:00:00.000Z',
+};
+
+const unitFirst = jest.fn(async () => null as UnitData | null);
+const unitUpdate = jest.fn(
+  async (_data: {
+    name: string;
+    type: UnitType;
+    description: string | null;
+    isActive: boolean;
+  }) => unit,
+);
+const unitDelete = jest.fn(async () => unit);
+const unitCreate = jest.fn(
+  async (data: {
+    parentId: string | null;
+    name: string;
+    type: UnitType;
+    description: string | null;
+  }) => ({ ...unit, ...data }),
+);
+const unitAll = jest.fn(async () => [] as UnitData[]);
+const unitWhere = jest.fn(() => ({
+  first: unitFirst,
+  update: unitUpdate,
+  delete: unitDelete,
+}));
+const unitOrderBy = jest.fn(() => ({ all: unitAll }));
+const roleFirst = jest.fn(async () => null as { id: string } | null);
+const roleWhere = jest.fn(() => ({ first: roleFirst }));
+
+const prisma = {
+  public: {
+    Unit: {
+      where: unitWhere,
+      create: unitCreate,
+      orderBy: unitOrderBy,
+    },
+    Role: { where: roleWhere },
+  },
+};
+
+describe('UnitsService', () => {
+  let service: UnitsService;
+
+  beforeEach(() => {
+    unitFirst.mockReset().mockResolvedValue(null);
+    unitUpdate.mockReset().mockResolvedValue(unit);
+    unitDelete.mockReset().mockResolvedValue(unit);
+    unitCreate.mockReset().mockImplementation(async (data) => ({
+      ...unit,
+      ...data,
+    }));
+    unitAll.mockReset().mockResolvedValue([]);
+    unitWhere.mockClear();
+    unitOrderBy.mockClear();
+    roleFirst.mockReset().mockResolvedValue(null);
+    roleWhere.mockClear();
+
+    service = new UnitsService(prisma as unknown as PrismaService);
+  });
+
+  it('creates a root unit when parentId is omitted', async () => {
+    await expect(
+      service.createUnit({ name: ' Finance ', type: 'DEPARTMENT' }),
+    ).resolves.toEqual(unit);
+    expect(unitCreate).toHaveBeenCalledWith({
+      parentId: null,
+      name: 'Finance',
+      type: 'DEPARTMENT',
+      description: null,
+    });
+    expect(unitWhere).toHaveBeenCalledWith({ parentId: null, name: 'Finance' });
+  });
+
+  it('creates a root unit when parentId is null', async () => {
+    await expect(
+      service.createUnit({
+        name: 'Finance',
+        type: 'DEPARTMENT',
+        parentId: null,
+      }),
+    ).resolves.toEqual(unit);
+    expect(unitCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ parentId: null }),
+    );
+    expect(unitWhere).toHaveBeenCalledWith({ parentId: null, name: 'Finance' });
+  });
+
+  it('creates a child unit when its parent exists', async () => {
+    unitFirst.mockResolvedValueOnce(unit);
+
+    await service.createUnit({
+      name: 'Accounts Payable',
+      type: 'TEAM',
+      parentId: unit.id,
+    });
+
+    expect(unitCreate).toHaveBeenCalledWith({
+      parentId: unit.id,
+      name: 'Accounts Payable',
+      type: 'TEAM',
+      description: null,
+    });
+  });
+
+  it('rejects creating a unit with a missing parent', async () => {
+    await expect(
+      service.createUnit({
+        name: 'Accounts Payable',
+        type: 'TEAM',
+        parentId: 'missing-parent',
+      }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(unitCreate).not.toHaveBeenCalled();
+  });
+
+  it('rejects a duplicate sibling unit name', async () => {
+    unitFirst.mockResolvedValueOnce(unit);
+
+    await expect(
+      service.createUnit({
+        name: ' Finance ',
+        type: 'DEPARTMENT',
+        parentId: null,
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
+
+    expect(unitCreate).not.toHaveBeenCalled();
+  });
+
+  it('lists units ordered by name', async () => {
+    unitAll.mockResolvedValueOnce([unit]);
+
+    await expect(service.listUnits()).resolves.toEqual([unit]);
+    expect(unitOrderBy).toHaveBeenCalledTimes(1);
+  });
+
+  it('gets a unit by id', async () => {
+    unitFirst.mockResolvedValueOnce(unit);
+
+    await expect(service.getUnit(unit.id)).resolves.toEqual(unit);
+  });
+
+  it('rejects getting a missing unit', async () => {
+    await expect(service.getUnit('missing')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+  });
+
+  it('updates unit details without changing its parent', async () => {
+    const updated = { ...unit, name: 'Finance Division', isActive: false };
+    unitFirst.mockResolvedValueOnce(unit);
+    unitUpdate.mockResolvedValueOnce(updated);
+
+    await expect(
+      service.updateUnit(unit.id, {
+        name: ' Finance Division ',
+        type: 'DEPARTMENT',
+        description: null,
+        isActive: false,
+      }),
+    ).resolves.toEqual(updated);
+
+    expect(unitUpdate).toHaveBeenCalledWith({
+      name: 'Finance Division',
+      type: 'DEPARTMENT',
+      description: null,
+      isActive: false,
+    });
+  });
+
+  it('rejects updating to a duplicate sibling name', async () => {
+    unitFirst
+      .mockResolvedValueOnce(unit)
+      .mockResolvedValueOnce({ ...unit, id: 'unit-2' });
+
+    await expect(
+      service.updateUnit(unit.id, {
+        name: 'Other Finance',
+        type: 'DEPARTMENT',
+        description: null,
+        isActive: true,
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
+
+    expect(unitUpdate).not.toHaveBeenCalled();
+  });
+
+  it('deletes a leaf unit without roles', async () => {
+    unitFirst.mockResolvedValueOnce(unit);
+
+    await expect(service.deleteUnit(unit.id)).resolves.toEqual({
+      deleted: true,
+    });
+    expect(unitDelete).toHaveBeenCalledTimes(1);
+  });
+
+  it('prevents deleting a unit that has child units', async () => {
+    unitFirst.mockResolvedValueOnce(unit).mockResolvedValueOnce({
+      ...unit,
+      id: 'child-unit',
+      parentId: unit.id,
+    });
+
+    await expect(service.deleteUnit(unit.id)).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+    expect(unitDelete).not.toHaveBeenCalled();
+  });
+
+  it('prevents deleting a unit that has roles', async () => {
+    unitFirst.mockResolvedValueOnce(unit);
+    roleFirst.mockResolvedValueOnce({ id: 'role-1' });
+
+    await expect(service.deleteUnit(unit.id)).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+    expect(unitDelete).not.toHaveBeenCalled();
+  });
+});

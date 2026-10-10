@@ -6,9 +6,15 @@ import { AppService } from './app.service.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { SuccessResponseInterceptor } from './common/interceptors/success-response.interceptor.js';
 import { AuthorizationModule } from './modules/authorization/authorization.module.js';
+import { UnitsModule } from './modules/units/units.module.js';
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true }), AuthModule, AuthorizationModule],
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    AuthModule,
+    AuthorizationModule,
+    UnitsModule,
+  ],
   controllers: [AppController],
   providers: [
     AppService,
