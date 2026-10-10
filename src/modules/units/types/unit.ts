@@ -4,6 +4,7 @@ export enum UnitTypeEnum {
   MANAGEMENT = 'MANAGEMENT',
 }
 
+// Keep enum values compatible with Prisma string unions and incoming DTO strings.
 export type UnitType = `${UnitTypeEnum}`;
 
 export interface UnitData {

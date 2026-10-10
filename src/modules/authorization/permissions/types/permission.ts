@@ -6,6 +6,7 @@ export enum PermissionActionEnum {
   PATCH = 'PATCH',
 }
 
+// Keep enum values compatible with Prisma string unions and incoming DTO strings.
 export type PermissionAction = `${PermissionActionEnum}`;
 
 export interface PermissionData {
