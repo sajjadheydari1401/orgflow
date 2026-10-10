@@ -45,6 +45,17 @@ describe('UnitsController', () => {
     expect(getUnit).toHaveBeenCalledWith(unit.id);
   });
 
+  it('delegates unit tree retrieval', async () => {
+    const tree = [{ ...unit, children: [] }];
+    const getUnitsTree = jest.fn(async () => tree);
+    const controller = new UnitsController({
+      getUnitsTree,
+    } as unknown as UnitsService);
+
+    await expect(controller.getUnitsTree()).resolves.toEqual(tree);
+    expect(getUnitsTree).toHaveBeenCalledTimes(1);
+  });
+
   it('delegates unit updates', async () => {
     const updateUnit = jest.fn(async () => unit);
     const controller = new UnitsController({

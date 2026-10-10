@@ -5,13 +5,28 @@ import {
 } from '@nestjs/common';
 import { UnitData, UnitTreeNode } from '../types/unit';
 
+// Normalizes the unit list by filtering out invalid entries.
+function normalizeUnits(units?: UnitData[] | null): UnitData[] {
+  if (!Array.isArray(units)) {
+    return [];
+  }
+
+  // Filter out any null or undefined units and ensure each unit has a valid ID.
+  return units.filter(
+    (unit): unit is UnitData => !!unit && typeof unit.id === 'string',
+  );
+}
+
 // Converts the flat unit list into a nested tree.
-export function buildTree(units: UnitData[]): UnitTreeNode[] {
+export function buildTree(units?: UnitData[] | null): UnitTreeNode[] {
   const roots: UnitTreeNode[] = [];
+
+  // Normalize the units to ensure we have a valid array.
+  const safeUnits = normalizeUnits(units);
 
   // Create a node for every unit so parents can be found by ID.
   const nodes = new Map<string, UnitTreeNode>(
-    units.map((unit) => [unit.id, { ...unit, children: [] }]),
+    safeUnits.map((unit) => [unit.id, { ...unit, children: [] }]),
   );
 
   for (const node of nodes.values()) {
@@ -39,11 +54,12 @@ export function buildTree(units: UnitData[]): UnitTreeNode[] {
 // Assert that the target parent unit is valid for moving a unit.
 export function assertTargetParentIsValid(
   unit: UnitData,
-  targetUnitId: string | null,
-  unitsById: Map<string, UnitData>,
+  targetUnitId?: string | null,
+  unitsById?: Map<string, UnitData>,
 ): void {
+  const safeUnitsById = unitsById instanceof Map ? unitsById : new Map();
   const visited = new Set<string>();
-  let ancestorId = targetUnitId;
+  let ancestorId: string | null = targetUnitId ?? null;
 
   while (ancestorId !== null) {
     if (ancestorId === unit.id) {
@@ -59,7 +75,7 @@ export function assertTargetParentIsValid(
     }
 
     visited.add(ancestorId);
-    const ancestor = unitsById.get(ancestorId);
+    const ancestor = safeUnitsById.get(ancestorId);
 
     if (!ancestor) {
       throw new NotFoundException('Target parent unit not found');
@@ -76,13 +92,14 @@ export function assertTargetParentIsValid(
 // Assert that the target parent unit does not have a sibling with the same name.
 export function assertSiblingNameAvailable(
   unit: UnitData,
-  targetUnitId: string | null,
-  units: UnitData[],
+  targetUnitId?: string | null,
+  units?: UnitData[] | null,
 ): void {
-  const duplicate = units.some(
+  const safeUnits = normalizeUnits(units);
+  const duplicate = safeUnits.some(
     (candidate) =>
       candidate.id !== unit.id &&
-      candidate.parentId === targetUnitId &&
+      candidate.parentId === (targetUnitId ?? null) &&
       candidate.name === unit.name,
   );
 

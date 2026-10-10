@@ -32,6 +32,11 @@ export class UnitsController {
     return this.unitsService.listUnits();
   }
 
+  @Get('tree')
+  getUnitsTree() {
+    return this.unitsService.getUnitsTree();
+  }
+
   @Get(':id')
   getUnit(@Param('id') id: string): Promise<UnitData> {
     return this.unitsService.getUnit(id);

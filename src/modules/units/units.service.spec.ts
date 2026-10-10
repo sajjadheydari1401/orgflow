@@ -95,6 +95,12 @@ describe('tree helpers', () => {
     ]);
   });
 
+  it('returns an empty tree for empty or undefined input', () => {
+    expect(buildTree([])).toEqual([]);
+    expect(buildTree(undefined as unknown as UnitData[])).toEqual([]);
+    expect(buildTree(null as unknown as UnitData[])).toEqual([]);
+  });
+
   it('accepts a valid target parent while moving a unit', () => {
     const root: UnitData = {
       ...unit,
@@ -162,6 +168,76 @@ describe('tree helpers', () => {
         new Map([[parent.id, parent]]),
       ),
     ).toThrow(ForbiddenException);
+  });
+
+  it('rejects moving a unit when the target parent does not exist', () => {
+    const current: UnitData = {
+      ...unit,
+      id: 'current-1',
+      parentId: null,
+      name: 'Team',
+    };
+
+    expect(() =>
+      assertTargetParentIsValid(current, 'missing-parent', new Map()),
+    ).toThrow(NotFoundException);
+  });
+
+  it('rejects moving a unit into an ancestor cycle', () => {
+    const rootA: UnitData = {
+      ...unit,
+      id: 'root-a',
+      parentId: 'root-b',
+      name: 'A',
+    };
+    const rootB: UnitData = {
+      ...unit,
+      id: 'root-b',
+      parentId: 'root-a',
+      name: 'B',
+    };
+    const current: UnitData = {
+      ...unit,
+      id: 'current-1',
+      parentId: null,
+      name: 'Current',
+    };
+
+    expect(() =>
+      assertTargetParentIsValid(
+        current,
+        rootA.id,
+        new Map([
+          [rootA.id, rootA],
+          [rootB.id, rootB],
+          [current.id, current],
+        ]),
+      ),
+    ).toThrow(ConflictException);
+  });
+
+  it('treats an undefined target as root and ignores missing sibling candidates', () => {
+    const current: UnitData = {
+      ...unit,
+      id: 'current-1',
+      parentId: null,
+      name: 'Team',
+    };
+
+    expect(() =>
+      assertTargetParentIsValid(
+        current,
+        undefined,
+        new Map([[current.id, current]]),
+      ),
+    ).not.toThrow();
+    expect(() =>
+      assertSiblingNameAvailable(
+        current,
+        undefined,
+        undefined as unknown as UnitData[],
+      ),
+    ).not.toThrow();
   });
 
   it('rejects moving a unit into a parent that would create a duplicate sibling name', () => {
