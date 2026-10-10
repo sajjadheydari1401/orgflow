@@ -18,10 +18,10 @@ const unit: UnitData = {
 const unitFirst = jest.fn(async () => null as UnitData | null);
 const unitUpdate = jest.fn(
   async (_data: {
-    name: string;
-    type: UnitType;
-    description: string | null;
-    isActive: boolean;
+    name?: string;
+    type?: UnitType;
+    description?: string | null;
+    isActive?: boolean;
   }) => unit,
 );
 const unitDelete = jest.fn(async () => unit);
@@ -199,6 +199,49 @@ describe('UnitsService', () => {
     ).rejects.toBeInstanceOf(ConflictException);
 
     expect(unitUpdate).not.toHaveBeenCalled();
+  });
+
+  it('deactivates an active unit by setting its status to false', async () => {
+    const inactiveUnit = { ...unit, isActive: false };
+    unitUpdate.mockResolvedValueOnce(inactiveUnit);
+
+    await expect(service.updateUnitStatus(unit.id, false)).resolves.toEqual(
+      inactiveUnit,
+    );
+    expect(unitWhere).toHaveBeenCalledWith({ id: unit.id });
+    expect(unitUpdate).toHaveBeenCalledWith({ isActive: false });
+  });
+
+  it('activates an inactive unit by setting its status to true', async () => {
+    const activeUnit = { ...unit, isActive: true };
+    unitUpdate.mockResolvedValueOnce(activeUnit);
+
+    await expect(service.updateUnitStatus(unit.id, true)).resolves.toEqual(
+      activeUnit,
+    );
+    expect(unitUpdate).toHaveBeenCalledWith({ isActive: true });
+  });
+
+  it('succeeds when setting the current status again', async () => {
+    const inactiveUnit = { ...unit, isActive: false };
+    unitUpdate.mockResolvedValue(inactiveUnit);
+
+    await expect(service.updateUnitStatus(unit.id, false)).resolves.toEqual(
+      inactiveUnit,
+    );
+    await expect(service.updateUnitStatus(unit.id, false)).resolves.toEqual(
+      inactiveUnit,
+    );
+    expect(unitUpdate).toHaveBeenNthCalledWith(1, { isActive: false });
+    expect(unitUpdate).toHaveBeenNthCalledWith(2, { isActive: false });
+  });
+
+  it('rejects status updates for a missing unit', async () => {
+    unitUpdate.mockResolvedValueOnce(null as never);
+
+    await expect(
+      service.updateUnitStatus('missing', false),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('deletes a leaf unit without roles', async () => {

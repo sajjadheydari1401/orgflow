@@ -61,6 +61,19 @@ describe('UnitsController', () => {
     expect(updateUnit).toHaveBeenCalledWith(unit.id, input);
   });
 
+  it('delegates unit status updates', async () => {
+    const inactiveUnit = { ...unit, isActive: false };
+    const updateUnitStatus = jest.fn(async () => inactiveUnit);
+    const controller = new UnitsController({
+      updateUnitStatus,
+    } as unknown as UnitsService);
+
+    await expect(
+      controller.updateUnitStatus(unit.id, { isActive: false }),
+    ).resolves.toBe(inactiveUnit);
+    expect(updateUnitStatus).toHaveBeenCalledWith(unit.id, false);
+  });
+
   it('delegates unit deletion', async () => {
     const deleteUnit = jest.fn(async () => ({ deleted: true as const }));
     const controller = new UnitsController({
