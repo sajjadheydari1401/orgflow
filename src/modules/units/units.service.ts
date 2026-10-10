@@ -1,12 +1,18 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { CreateUnitDto } from './dto/create-unit.dto.js';
 import { UpdateUnitDto } from './dto/update-unit.dto.js';
-import type { UnitData } from './types/unit.js';
+import type { UnitData, UnitTreeNode } from './types/unit.js';
+import {
+  assertSiblingNameAvailable,
+  assertTargetParentIsValid,
+  buildTree,
+} from './utils/tree.js';
 
 @Injectable()
 export class UnitsService {
@@ -143,5 +149,48 @@ export class UnitsService {
     await this.prisma.public.Unit.where({ id }).delete();
 
     return { deleted: true };
+  }
+
+  //MOVE UNIT
+  async moveUnit(
+    unitId: string,
+    targetUnitId: string | null,
+  ): Promise<UnitData> {
+    return this.prisma.client.transaction(async (tx) => {
+      const units = await tx.orm.public.Unit.all();
+      const unitsById = new Map(units.map((unit) => [unit.id, unit] as const));
+      const unit = unitsById.get(unitId);
+
+      if (!unit) {
+        throw new NotFoundException('Unit not found');
+      }
+
+      if (!unit.isActive) {
+        throw new ForbiddenException('Cannot move an inactive unit');
+      }
+
+      // Assert that the target parent unit is valid for moving a unit.
+      assertTargetParentIsValid(unit, targetUnitId, unitsById);
+
+      // Assert that the target parent unit does not have a sibling with the same name.
+      assertSiblingNameAvailable(unit, targetUnitId, units);
+
+      // Move the unit to the new parent unit.
+      const movedUnit = await tx.orm.public.Unit.where({ id: unitId }).update({
+        parentId: targetUnitId,
+      });
+
+      if (!movedUnit) {
+        throw new NotFoundException('Unit not found');
+      }
+
+      return movedUnit;
+    });
+  }
+
+  // GET UNITS TREE
+  async getUnitsTree(): Promise<UnitTreeNode[]> {
+    const units = await this.listUnits();
+    return buildTree(units);
   }
 }

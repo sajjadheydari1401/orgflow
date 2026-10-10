@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { CreateUnitDto } from './dto/create-unit.dto.js';
+import { MoveUnitDto } from './dto/move-unit.dto.js';
 import { SetUnitStatusDto } from './dto/set-unit-status.dto.js';
 import { UpdateUnitDto } from './dto/update-unit.dto.js';
 import { UnitsService } from './units.service.js';
@@ -52,6 +53,15 @@ export class UnitsController {
     @Body() input: SetUnitStatusDto,
   ): Promise<UnitData> {
     return this.unitsService.updateUnitStatus(id, input.isActive);
+  }
+
+  @Patch(':id/move')
+  @HttpCode(HttpStatus.OK)
+  moveUnit(
+    @Param('id') id: string,
+    @Body() input: MoveUnitDto,
+  ): Promise<UnitData> {
+    return this.unitsService.moveUnit(id, input.targetUnitId ?? null);
   }
 
   @Delete(':id')

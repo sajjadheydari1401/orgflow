@@ -1,8 +1,17 @@
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { jest } from '@jest/globals';
 import type { PrismaService } from '../../prisma/prisma.service.js';
 import { UnitsService } from './units.service.js';
 import type { UnitData, UnitType } from './types/unit.js';
+import {
+  assertSiblingNameAvailable,
+  assertTargetParentIsValid,
+  buildTree,
+} from './utils/tree.js';
 
 const unit: UnitData = {
   id: 'unit-1',
@@ -54,6 +63,127 @@ const prisma = {
   },
 };
 
+describe('tree helpers', () => {
+  it('builds a nested tree from flat unit rows', () => {
+    const root: UnitData = {
+      ...unit,
+      id: 'root-1',
+      parentId: null,
+      name: 'Root',
+    };
+    const child: UnitData = {
+      ...unit,
+      id: 'child-1',
+      parentId: 'root-1',
+      name: 'Child',
+    };
+    const orphan: UnitData = {
+      ...unit,
+      id: 'orphan-1',
+      parentId: 'missing-parent',
+      name: 'Orphan',
+    };
+
+    const tree = buildTree([root, child, orphan]);
+
+    expect(tree).toEqual([
+      {
+        ...root,
+        children: [{ ...child, children: [] }],
+      },
+      { ...orphan, children: [] },
+    ]);
+  });
+
+  it('accepts a valid target parent while moving a unit', () => {
+    const root: UnitData = {
+      ...unit,
+      id: 'root-1',
+      parentId: null,
+      name: 'Root',
+    };
+    const child: UnitData = {
+      ...unit,
+      id: 'child-1',
+      parentId: root.id,
+      name: 'Child',
+    };
+
+    expect(() =>
+      assertTargetParentIsValid(child, root.id, new Map([[root.id, root]])),
+    ).not.toThrow();
+  });
+
+  it('rejects moving a unit under itself or one of its descendants', () => {
+    const root: UnitData = {
+      ...unit,
+      id: 'root-1',
+      parentId: null,
+      name: 'Root',
+    };
+    const child: UnitData = {
+      ...unit,
+      id: 'child-1',
+      parentId: root.id,
+      name: 'Child',
+    };
+
+    expect(() =>
+      assertTargetParentIsValid(
+        root,
+        child.id,
+        new Map([
+          [root.id, root],
+          [child.id, child],
+        ]),
+      ),
+    ).toThrow(ConflictException);
+  });
+
+  it('rejects moving a unit under an inactive ancestor', () => {
+    const parent: UnitData = {
+      ...unit,
+      id: 'parent-1',
+      parentId: null,
+      name: 'Parent',
+      isActive: false,
+    };
+    const child: UnitData = {
+      ...unit,
+      id: 'child-1',
+      parentId: parent.id,
+      name: 'Child',
+    };
+
+    expect(() =>
+      assertTargetParentIsValid(
+        child,
+        parent.id,
+        new Map([[parent.id, parent]]),
+      ),
+    ).toThrow(ForbiddenException);
+  });
+
+  it('rejects moving a unit into a parent that would create a duplicate sibling name', () => {
+    const current: UnitData = {
+      ...unit,
+      id: 'current-1',
+      parentId: null,
+      name: 'Team',
+    };
+    const duplicate: UnitData = {
+      ...unit,
+      id: 'duplicate-1',
+      parentId: 'target-parent',
+      name: 'Team',
+    };
+
+    expect(() =>
+      assertSiblingNameAvailable(current, 'target-parent', [duplicate]),
+    ).toThrow(ConflictException);
+  });
+});
+
 describe('UnitsService', () => {
   let service: UnitsService;
 
@@ -84,20 +214,6 @@ describe('UnitsService', () => {
       type: 'DEPARTMENT',
       description: null,
     });
-    expect(unitWhere).toHaveBeenCalledWith({ parentId: null, name: 'Finance' });
-  });
-
-  it('creates a root unit when parentId is null', async () => {
-    await expect(
-      service.createUnit({
-        name: 'Finance',
-        type: 'DEPARTMENT',
-        parentId: null,
-      }),
-    ).resolves.toEqual(unit);
-    expect(unitCreate).toHaveBeenCalledWith(
-      expect.objectContaining({ parentId: null }),
-    );
     expect(unitWhere).toHaveBeenCalledWith({ parentId: null, name: 'Finance' });
   });
 
@@ -136,7 +252,6 @@ describe('UnitsService', () => {
       service.createUnit({
         name: ' Finance ',
         type: 'DEPARTMENT',
-        parentId: null,
       }),
     ).rejects.toBeInstanceOf(ConflictException);
 

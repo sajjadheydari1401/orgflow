@@ -14,3 +14,7 @@ export interface UnitData {
   createdAt: string;
   updatedAt: string;
 }
+
+export type UnitTreeNode = UnitData & {
+  children: UnitTreeNode[];
+};
