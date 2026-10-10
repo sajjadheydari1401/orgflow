@@ -4,32 +4,15 @@ import type { PrismaService } from '../../../prisma/prisma.service.js';
 import { RoleAssignmentsService } from './role-assignments.service.js';
 import type { RoleAssignmentData } from './types/role-assignment.js';
 import type { RoleData } from '../roles/types/role.js';
-
-// Temporary UserData type for testing purposes
-// TODO: replace with type after User module is implemented
-type UserData = {
-  id: string;
-  email: string;
-  displayName: string;
-  hashedPassword: string;
-  avatarUrl: string | null;
-  mobile: string | null;
-  isManager: boolean;
-  refreshTokenHash: string | null;
-  emailVerifiedAt: string | null;
-  createdAt: string;
-  updatedAt: string;
-};
+import type { UserData } from '../../users/types/user.js';
 
 const user: UserData = {
   id: 'user-1',
   email: 'alice@example.com',
   displayName: 'Alice',
-  hashedPassword: 'hash',
   avatarUrl: null,
   mobile: null,
   isManager: false,
-  refreshTokenHash: null,
   emailVerifiedAt: null,
   createdAt: '2026-10-09T00:00:00.000Z',
   updatedAt: '2026-10-09T00:00:00.000Z',
