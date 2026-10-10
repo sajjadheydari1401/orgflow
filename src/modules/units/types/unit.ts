@@ -1,8 +1,10 @@
-import type { Models } from '../../../prisma/contract.d.js';
+export enum UnitTypeEnum {
+  TEAM = 'TEAM',
+  DEPARTMENT = 'DEPARTMENT',
+  MANAGEMENT = 'MANAGEMENT',
+}
 
-export type UnitType = Models.public_Unit['type'];
-
-export const UNIT_TYPES: UnitType[] = ['TEAM', 'DEPARTMENT', 'MANAGEMENT'];
+export type UnitType = `${UnitTypeEnum}`;
 
 export interface UnitData {
   id: string;

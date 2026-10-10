@@ -8,7 +8,8 @@ import {
   Matches,
   MaxLength,
 } from 'class-validator';
-import { UNIT_TYPES, type UnitType } from '../types/unit.js';
+import { UNIT_TYPES } from '../units.constants.js';
+import type { UnitType } from '../types/unit.js';
 
 export class UpdateUnitDto {
   @ApiProperty({ example: 'Finance' })

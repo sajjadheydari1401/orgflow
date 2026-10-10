@@ -9,7 +9,8 @@ import {
   MaxLength,
   ValidateIf,
 } from 'class-validator';
-import { UNIT_TYPES, type UnitType } from '../types/unit.js';
+import { UNIT_TYPES } from '../units.constants.js';
+import type { UnitType } from '../types/unit.js';
 
 export class CreateUnitDto {
   @ApiProperty({ example: 'Finance' })
