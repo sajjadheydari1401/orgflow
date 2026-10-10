@@ -1,17 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsIn, IsNotEmpty, IsString } from 'class-validator';
-import {
-  PERMISSION_ACTIONS,
-  type PermissionAction,
-} from '../types/permission.js';
+import { PartialType } from '@nestjs/swagger';
+import { CreatePermissionDto } from './create-permission.dto.js';
 
-export class UpdatePermissionDto {
-  @ApiProperty({ example: 'a8c9f6bb-8a34-4ac5-b0dc-6ea58a282f14' })
-  @IsString()
-  @IsNotEmpty()
-  resourceId!: string;
-
-  @ApiProperty({ enum: PERMISSION_ACTIONS })
-  @IsIn(PERMISSION_ACTIONS)
-  action!: PermissionAction;
-}
+export class UpdatePermissionDto extends PartialType(CreatePermissionDto) {}

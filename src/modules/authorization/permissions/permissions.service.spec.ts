@@ -146,6 +146,23 @@ describe('PermissionsService', () => {
     });
   });
 
+  it('preserves omitted fields during a partial update', async () => {
+    const updated = { ...permission, action: 'UPDATE' as const };
+    permissionFirst
+      .mockResolvedValueOnce(permission)
+      .mockResolvedValueOnce(null);
+    resourceFirst.mockResolvedValueOnce(resource);
+    permissionUpdate.mockResolvedValueOnce(updated);
+
+    await expect(
+      service.updatePermission(permission.id, { action: 'UPDATE' }),
+    ).resolves.toEqual(updated);
+    expect(permissionUpdate).toHaveBeenCalledWith({
+      resourceId: permission.resourceId,
+      action: 'UPDATE',
+    });
+  });
+
   it('rejects updating to a duplicate resource/action pair', async () => {
     permissionFirst
       .mockResolvedValueOnce(permission)

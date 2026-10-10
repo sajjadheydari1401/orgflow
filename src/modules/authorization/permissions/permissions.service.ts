@@ -71,9 +71,12 @@ export class PermissionsService {
       throw new NotFoundException('Permission not found');
     }
 
+    const nextResourceId = input.resourceId ?? existing.resourceId;
+    const nextAction = input.action ?? existing.action;
+
     // Ensure the permission is linked to an existing resource.
     const resource = await this.prisma.public.Resource.where({
-      id: input.resourceId,
+      id: nextResourceId,
     }).first();
 
     if (!resource) {
@@ -82,8 +85,8 @@ export class PermissionsService {
 
     // Keep each action unique within its resource.
     const duplicate = await this.prisma.public.Permission.where({
-      resourceId: input.resourceId,
-      action: input.action,
+      resourceId: nextResourceId,
+      action: nextAction,
     }).first();
 
     if (duplicate && duplicate.id !== id) {
@@ -94,8 +97,8 @@ export class PermissionsService {
 
     // Save the updated resource/action pair.
     const updated = await this.prisma.public.Permission.where({ id }).update({
-      resourceId: input.resourceId,
-      action: input.action,
+      resourceId: nextResourceId,
+      action: nextAction,
     });
 
     // Handle a permission removed while the update was in progress.
