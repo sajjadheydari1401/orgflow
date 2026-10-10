@@ -14,25 +14,30 @@ export class PermissionsService {
 
   //CREATE PERMISSION
   async createPermission(input: CreatePermissionDto): Promise<PermissionData> {
+    // Ensure the resource exists before creating a permission for it.
     const resource = await this.prisma.public.Resource.where({
       id: input.resourceId,
     }).first();
 
+    // If the resource does not exist, throw a NotFoundException.
     if (!resource) {
       throw new NotFoundException('Resource not found');
     }
 
+    // Keep each action unique within its resource.
     const existing = await this.prisma.public.Permission.where({
       resourceId: input.resourceId,
       action: input.action,
     }).first();
 
+    // If a permission with the same action already exists for the resource, throw a ConflictException.
     if (existing) {
       throw new ConflictException(
         'This action is already assigned to the resource',
       );
     }
 
+    // Create the new permission with the provided input.
     return this.prisma.public.Permission.create({
       resourceId: input.resourceId,
       action: input.action,

@@ -15,13 +15,18 @@ export class ResourcesService {
 
   //CREATE RESOURCE
   async createResource(input: CreateResourceDto): Promise<ResourceData> {
+    // Trim and normalize the route before querying the database.
     const route = normalizeRoute(input.route);
+
+    // Ensure each route is unique across resources.
     const existing = await this.prisma.public.Resource.where({ route }).first();
 
+    // If a resource with the same route already exists, throw a ConflictException.
     if (existing) {
       throw new ConflictException('A resource with this route already exists');
     }
 
+    // Create the new resource with the provided route.
     return this.prisma.public.Resource.create({ route });
   }
 
