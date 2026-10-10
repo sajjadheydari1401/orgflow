@@ -4,10 +4,12 @@ import { PermissionsController } from './permissions/permissions.controller.js';
 import { PermissionsService } from './permissions/permissions.service.js';
 import { ResourcesController } from './resources/resources.controller.js';
 import { ResourcesService } from './resources/resources.service.js';
+import { RolesController } from './roles/roles.controller.js';
+import { RolesService } from './roles/roles.service.js';
 
 @Module({
   imports: [PrismaModule],
-  controllers: [ResourcesController, PermissionsController],
-  providers: [ResourcesService, PermissionsService],
+  controllers: [ResourcesController, PermissionsController, RolesController],
+  providers: [ResourcesService, PermissionsService, RolesService],
 })
 export class AuthorizationModule {}
