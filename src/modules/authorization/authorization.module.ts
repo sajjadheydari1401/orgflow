@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../prisma/prisma.module.js';
 import { PermissionsController } from './permissions/permissions.controller.js';
 import { PermissionsService } from './permissions/permissions.service.js';
+import { RoleAssignmentsController } from './role-assignments/role-assignments.controller.js';
+import { RoleAssignmentsService } from './role-assignments/role-assignments.service.js';
 import { RolePermissionsController } from './role-permissions/role-permissions.controller.js';
 import { RolePermissionsService } from './role-permissions/role-permissions.service.js';
 import { ResourcesController } from './resources/resources.controller.js';
@@ -16,12 +18,14 @@ import { RolesService } from './roles/roles.service.js';
     PermissionsController,
     RolesController,
     RolePermissionsController,
+    RoleAssignmentsController,
   ],
   providers: [
     ResourcesService,
     PermissionsService,
     RolesService,
     RolePermissionsService,
+    RoleAssignmentsService,
   ],
 })
 export class AuthorizationModule {}
