@@ -22,8 +22,13 @@ async function bootstrap() {
   app.useLogger(logger);
   app.useGlobalPipes(
     new ValidationPipe({
+      // Keep only request properties declared with validation decorators.
       whitelist: true,
+
+      // Reject unknown properties instead of silently removing them.
       forbidNonWhitelisted: true,
+
+      // Convert incoming payloads to their DTO classes and declared types.
       transform: true,
     }),
   );
