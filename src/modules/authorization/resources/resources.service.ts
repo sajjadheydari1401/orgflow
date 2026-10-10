@@ -49,20 +49,25 @@ export class ResourcesService {
     id: string,
     input: UpdateResourceDto,
   ): Promise<ResourceData> {
-    const route = normalizeRoute(input.route);
-
     const existing = await this.prisma.public.Resource.where({ id }).first();
 
     if (!existing) {
       throw new NotFoundException('Resource not found');
     }
 
-    const duplicate = await this.prisma.public.Resource.where({
-      route,
-    }).first();
+    const route =
+      input.route === undefined ? existing.route : normalizeRoute(input.route);
 
-    if (duplicate && duplicate.id !== id) {
-      throw new ConflictException('A resource with this route already exists');
+    if (input.route !== undefined) {
+      const duplicate = await this.prisma.public.Resource.where({
+        route,
+      }).first();
+
+      if (duplicate && duplicate.id !== id) {
+        throw new ConflictException(
+          'A resource with this route already exists',
+        );
+      }
     }
 
     const updated = await this.prisma.public.Resource.where({ id }).update({

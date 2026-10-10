@@ -105,6 +105,15 @@ describe('ResourcesService', () => {
     expect(resourceUpdate).toHaveBeenCalledWith({ route: '/members' });
   });
 
+  it('preserves the route when an update omits it', async () => {
+    resourceFirst.mockResolvedValueOnce(resource);
+
+    await expect(service.updateResource(resource.id, {})).resolves.toEqual(
+      resource,
+    );
+    expect(resourceUpdate).toHaveBeenCalledWith({ route: resource.route });
+  });
+
   it('rejects an update that conflicts with another route', async () => {
     resourceFirst
       .mockResolvedValueOnce(resource)
